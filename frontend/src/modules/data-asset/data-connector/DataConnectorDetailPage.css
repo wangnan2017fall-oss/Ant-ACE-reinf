@@ -1,0 +1,113 @@
+.connector-detail-page {
+  color: #252c3d;
+}
+
+.connector-detail-header,
+.connector-detail-header > div {
+  display: flex;
+  align-items: center;
+}
+
+.connector-detail-header {
+  justify-content: space-between;
+}
+
+.connector-detail-header > div {
+  gap: 12px;
+}
+
+.connector-detail-header h1 {
+  font-size: 22px;
+}
+
+.connector-detail-header a {
+  color: #273044;
+  font-size: 36px;
+  text-decoration: none;
+}
+
+.connector-detail-header > button {
+  padding: 8px 18px;
+  border: 1px solid #dde2e9;
+  border-radius: 7px;
+  background: #fff;
+  color: #713fd0;
+  cursor: pointer;
+}
+
+.connector-info-card {
+  padding: 24px;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.connector-info-card h2 {
+  margin: 0 0 22px;
+  font-size: 16px;
+}
+
+.connector-info-card dl {
+  display: grid;
+  gap: 15px;
+}
+
+.connector-info-card dl div {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+}
+
+.connector-info-card dt {
+  color: #929baa;
+  font-size: 12px;
+}
+
+.connector-info-card dd {
+  margin: 0;
+  font-size: 13px;
+}
+
+.connector-info-card code {
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: #f1f3f6;
+}
+
+.connector-lineage {
+  display: flex;
+  min-height: 400px;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+
+.connector-lineage > div {
+  display: grid;
+  min-width: 210px;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid #dfe3e9;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(35, 30, 70, 0.06);
+}
+
+.connector-lineage > div.current {
+  border: 2px solid #7c3aed;
+}
+
+.connector-lineage span {
+  color: #7c3aed;
+  font-size: 10px;
+}
+
+.connector-lineage strong {
+  font-size: 13px;
+}
+
+.connector-lineage > b {
+  color: #c0c6d0;
+}

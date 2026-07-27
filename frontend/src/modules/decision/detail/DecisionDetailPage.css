@@ -1,0 +1,267 @@
+.decision-detail-page {
+  width: 100%;
+  height: 100%;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 16px;
+}
+
+.breadcrumb a {
+  color: #9ca3af;
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: #7c3aed;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.detail-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.back-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+  text-decoration: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.detail-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.new-version-btn {
+  background: #fff;
+  color: #7c3aed;
+  border: 1px solid #e5e5e5;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.new-version-btn:hover {
+  background: #f5f3ff;
+  border-color: #7c3aed;
+}
+
+.detail-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 24px;
+}
+
+.detail-tab {
+  background: none;
+  border: none;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #999;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.detail-tab:hover {
+  color: #666;
+}
+
+.detail-tab.active {
+  color: #7c3aed;
+  font-weight: 500;
+}
+
+.detail-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #7c3aed;
+}
+
+.detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.info-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 16px;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.info-label {
+  width: 120px;
+  font-size: 13px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #1f2937;
+}
+
+.info-value.editable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-icon {
+  color: #9ca3af;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.category-select {
+  padding: 6px 24px 6px 10px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1f2937;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+}
+
+.show-all-link {
+  background: none;
+  border: none;
+  color: #7c3aed;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.version-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 16px;
+}
+
+.version-tab {
+  background: none;
+  border: none;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #999;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.version-tab.active {
+  color: #7c3aed;
+  font-weight: 500;
+}
+
+.version-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #7c3aed;
+}
+
+.version-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.version-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.version-table td {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #4b5563;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.creator-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-link {
+  color: #7c3aed;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.edit-link:hover {
+  text-decoration: underline;
+}
+
+.placeholder-text {
+  color: #9ca3af;
+  font-size: 14px;
+}
