@@ -13,6 +13,9 @@
     radial-gradient(circle at 18% 48%, rgba(95, 46, 168, 0.28), transparent 34%),
     linear-gradient(180deg, #10052f 0%, #120538 100%);
   color: #fff;
+  font-family: 'Avenir Next', Avenir, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 .sidebar-brand {
@@ -23,7 +26,7 @@
   margin: 0;
   color: #fff;
   font-size: 28px;
-  font-weight: 750;
+  font-weight: 700;
   letter-spacing: -1.2px;
   line-height: 1;
 }
@@ -42,11 +45,13 @@
   display: grid;
   align-content: start;
   flex: 1;
-  gap: 8px;
+  gap: 5px;
   padding: 4px 10px 12px;
+  overflow-y: auto;
 }
 
 .primary-nav-item,
+.nav-group-trigger,
 .bottom-nav-item {
   display: flex;
   width: 100%;
@@ -57,13 +62,15 @@
   border-radius: 11px;
   color: rgba(232, 228, 245, 0.68);
   font-size: 15.5px;
-  font-weight: 650;
-  letter-spacing: -0.1px;
+  font-family: 'Avenir Next', Avenir, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0;
   text-decoration: none;
   transition: color 0.16s, background 0.16s, box-shadow 0.16s;
 }
 
 .primary-nav-item:hover,
+.nav-group-trigger:hover,
 .bottom-nav-item:hover {
   background: rgba(255, 255, 255, 0.07);
   color: #fff;
@@ -73,13 +80,113 @@
   background: linear-gradient(90deg, rgba(124, 58, 237, 0.54), rgba(124, 58, 237, 0.28));
   box-shadow: inset 0 0 0 1px rgba(180, 147, 255, 0.1);
   color: #fff;
-  font-weight: 730;
+  font-weight: 700;
 }
 
 .primary-nav-item:focus-visible,
+.nav-group-trigger:focus-visible,
+.submenu-item:focus-visible,
 .bottom-nav-item:focus-visible {
   outline: 2px solid rgba(175, 132, 255, 0.78);
   outline-offset: 1px;
+}
+
+.nav-group {
+  border-radius: 11px;
+}
+
+.nav-group.active {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.nav-group-trigger {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: 'Avenir Next', Avenir, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 15.5px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.nav-group.active .nav-group-trigger {
+  color: #fff;
+}
+
+.nav-arrow {
+  transform: rotate(-90deg);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 15px;
+  transition: transform 0.18s;
+}
+
+.nav-arrow.expanded {
+  transform: rotate(0);
+}
+
+.submenu {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  margin: 0 5px 6px 23px;
+  padding: 2px 0 2px 13px;
+  font-family: 'Avenir Next', Avenir, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.submenu::before {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.11);
+  content: '';
+}
+
+.submenu-item {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: rgba(226, 221, 240, 0.62);
+  font-size: 13px;
+  font-family: 'Avenir Next', Avenir, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.submenu-item > * {
+  font-family: inherit;
+}
+
+.submenu-item:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: #fff;
+}
+
+.submenu-item.active {
+  background: rgba(124, 58, 237, 0.36);
+  color: #fff;
+  font-weight: 700;
+}
+
+.submenu-marker {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.submenu-item.active .submenu-marker {
+  background: #a978ff;
+  box-shadow: 0 0 0 3px rgba(169, 120, 255, 0.15);
+  opacity: 1;
 }
 
 .nav-icon {

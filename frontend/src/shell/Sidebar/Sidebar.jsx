@@ -1,30 +1,28 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import './Sidebar.css'
 
-const primaryItems = [
+const groupedItems = [
   {
-    path: '/policy/1',
-    icon: 'policy',
-    label: 'Policy',
-    match: ['/policy', '/decision', '/testing', '/case-tracker'],
-  },
-  {
-    path: '/data-asset',
-    icon: 'data',
-    label: 'Data Asset',
-    match: ['/data-asset', '/data-source', '/data-connector', '/feature'],
-  },
-  {
-    path: '/business',
+    id: 'business',
     icon: 'business',
     label: 'Business',
-    match: ['/business', '/credit-adjustment', '/blockage', '/ai-decision'],
+    children: [
+      { path: '/ticket', label: 'Ticket' },
+      { path: '/credit-adjustment', label: 'Credit Adjustment' },
+      { path: '/blockage', label: 'Blockage Handling' },
+      { path: '/ai-decision', label: 'AI Decision' },
+    ],
   },
   {
-    path: '/approval',
-    icon: 'approval',
-    label: 'Approval Center',
-    match: ['/approval'],
+    id: 'data-asset',
+    icon: 'data',
+    label: 'Data Asset',
+    children: [
+      { path: '/data-source', label: 'Data Source' },
+      { path: '/data-connector', label: 'Data Connector' },
+      { path: '/feature', label: 'Feature' },
+    ],
   },
 ]
 
@@ -79,9 +77,28 @@ function NavigationIcon({ name }) {
 
 function Sidebar() {
   const location = useLocation()
-  const matches = (paths) => paths.some((path) => (
+  const isActive = (path) => (
     location.pathname === path || location.pathname.startsWith(`${path}/`)
-  ))
+  )
+  const isChildActive = (path) => (
+    location.pathname === path || location.pathname.startsWith(`${path}/`)
+  )
+  const activeGroup = groupedItems.find((group) => group.children.some((child) => isChildActive(child.path)))
+  const [expanded, setExpanded] = useState(() => ({
+    'data-asset': activeGroup?.id === 'data-asset',
+    business: activeGroup?.id === 'business',
+  }))
+
+  useEffect(() => {
+    if (!activeGroup) return
+    setExpanded((current) => ({ ...current, [activeGroup.id]: true }))
+  }, [activeGroup?.id])
+
+  const toggleGroup = (groupId) => {
+    setExpanded((current) => ({ ...current, [groupId]: !current[groupId] }))
+  }
+
+  const policyActive = ['/policy', '/decision', '/testing', '/case-tracker'].some(isActive)
 
   return (
     <aside className="sidebar">
@@ -91,25 +108,42 @@ function Sidebar() {
       </div>
 
       <nav className="sidebar-nav" aria-label="Product navigation">
-        {primaryItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`primary-nav-item ${matches(item.match) ? 'active' : ''}`}
-          >
-            <span className="nav-icon"><NavigationIcon name={item.icon} /></span>
-            <span className="nav-label">{item.label}</span>
-          </Link>
-        ))}
+        <Link to="/policy/1" className={`primary-nav-item ${policyActive ? 'active' : ''}`}>
+          <span className="nav-icon"><NavigationIcon name="policy" /></span>
+          <span className="nav-label">Policy</span>
+        </Link>
+
+        {groupedItems.map((group) => {
+          const groupActive = group.children.some((child) => isChildActive(child.path))
+          return (
+            <section className={`nav-group ${groupActive ? 'active' : ''}`} key={group.id}>
+              <button
+                className="nav-group-trigger"
+                aria-expanded={Boolean(expanded[group.id])}
+                onClick={() => toggleGroup(group.id)}
+              >
+                <span className="nav-icon"><NavigationIcon name={group.icon} /></span>
+                <span className="nav-label">{group.label}</span>
+                <span className={`nav-arrow ${expanded[group.id] ? 'expanded' : ''}`}>⌄</span>
+              </button>
+              {expanded[group.id] && (
+                <div className="submenu">
+                  {group.children.map((child) => (
+                    <Link key={child.path} to={child.path} className={`submenu-item ${isChildActive(child.path) ? 'active' : ''}`}>
+                      <span className="submenu-marker" />
+                      {child.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          )
+        })}
       </nav>
 
       <div className="sidebar-bottom">
         {bottomItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`bottom-nav-item ${matches([item.path]) ? 'active' : ''}`}
-          >
+          <Link key={item.path} to={item.path} className={`bottom-nav-item ${isActive(item.path) ? 'active' : ''}`}>
             <span className="nav-icon"><NavigationIcon name={item.icon} /></span>
             <span className="nav-label">{item.label}</span>
             {item.icon === 'workspace' && <span className="workspace-switch">⇄</span>}

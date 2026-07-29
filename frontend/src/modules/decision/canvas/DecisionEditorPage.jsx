@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import './DecisionEditorPage.css'
 
 const nodeTypes = [
-  { type: 'ifElse', label: 'If-Else', icon: '≷', color: '#d8c6ff' },
-  { type: 'action', label: 'Action', icon: 'ƒ', color: '#ffd2c5' },
+  { type: 'ifElse', label: 'If-Else', icon: '≷', color: '#d8c6ff', group: 'basic' },
+  { type: 'action', label: 'Action', icon: 'ƒ', color: '#ffd2c5', group: 'basic' },
+  { type: 'block', label: 'Block', icon: '⊘', color: '#ffc8ce', group: 'business' },
+  { type: 'decisionTable', label: 'Decision Table', icon: '▦', color: '#c9ddff', group: 'business' },
 ]
 
 const initialNodes = [
   { id: 'start', type: 'start', label: 'Start', x: 70, y: 155, outputs: ['user_id', 'shop_id'] },
   { id: 'ifElse1', type: 'ifElse', label: 'Eligibility Check', x: 300, y: 215, status: 'success', inputs: ['monthly_income', 'credit_report_score'], outputs: ['approved', 'customer_tier'] },
   { id: 'action1', type: 'action', label: 'Calculate Credit Terms', x: 650, y: 335, status: 'warning', inputs: ['monthly_income', 'customer_tier'], outputs: ['credit_limit', 'interest_rate', 'loan_term'] },
+  { id: 'decisionTable1', type: 'decisionTable', label: 'Decision Table 1', x: 650, y: 130, status: 'warning', inputs: ['credit_report_score'], outputs: ['table_result'] },
   { id: 'end', type: 'end', label: 'End', x: 1030, y: 365, inputs: ['approved', 'credit_limit', 'interest_rate', 'loan_term'] },
 ]
 
@@ -27,6 +30,12 @@ const featureVariables = [
   { name: 'shop_risk_level', type: 'string', component: 'Shop', key: 'shop_id' },
 ]
 
+const customConditionVariables = [
+  { name: 'requested_amount', type: 'number' },
+  { name: 'application_channel', type: 'string' },
+  { name: 'is_repeat_customer', type: 'boolean' },
+]
+
 const localVariables = [
   { name: 'approved', type: 'boolean', source: 'Eligibility Check.approved' },
   { name: 'customer_tier', type: 'string', source: 'Eligibility Check.customer_tier' },
@@ -39,6 +48,45 @@ const outputVariables = [
 ]
 
 const variableTypeOptions = ['String', 'Integer', 'Number', 'Boolean', 'Time', 'Object', 'Array', 'File']
+
+const decisionTablePickerCategories = [
+  { id: 'all', label: 'All', icon: '⌘' },
+  { id: 'custom', label: 'Custom', icon: 'C' },
+  { id: 'feature', label: 'Feature', icon: 'F', badge: 'Real-time' },
+  { id: 'upstream', label: 'Upstream Output', icon: 'N' },
+  { id: 'function', label: 'Function', icon: 'ƒ' },
+  { id: 'operator', label: 'Operator', icon: '±' },
+]
+
+const decisionTableFunctions = [
+  { name: 'dateDiff', description: 'Calculate time difference', syntax: 'dateDiff(start_time, end_time)' },
+  { name: 'getDate', description: 'Get system time', syntax: 'getDate()' },
+  { name: 'concat', description: 'String concatenation', syntax: 'concat(value_1, value_2)' },
+  { name: 'concat_ws', description: 'Concatenate with separator', syntax: 'concat_ws(separator, value_1, value_2)' },
+  { name: 'abs', description: 'Take absolute value', syntax: 'abs(value)' },
+  { name: 'get_json_object', description: 'Read a field from JSON', syntax: 'get_json_object(json, path)' },
+  { name: 'lpad', description: 'Left pad a string', syntax: 'lpad(value, length, pad)' },
+  { name: 'rpad', description: 'Right pad a string', syntax: 'rpad(value, length, pad)' },
+]
+
+const decisionTableOperators = [
+  { label: '+', detail: 'Add', group: 'Arithmetic' },
+  { label: '−', detail: 'Subtract', group: 'Arithmetic' },
+  { label: '×', detail: 'Multiply', group: 'Arithmetic' },
+  { label: '÷', detail: 'Divide', group: 'Arithmetic' },
+  { label: '%', detail: 'Remainder', group: 'Arithmetic' },
+  { label: '=', detail: 'Equal', group: 'Comparison' },
+  { label: '!=', detail: 'Not equal', group: 'Comparison' },
+  { label: '>', detail: 'Greater than', group: 'Comparison' },
+  { label: '>=', detail: 'Greater than or equal', group: 'Comparison' },
+  { label: '<', detail: 'Less than', group: 'Comparison' },
+  { label: '<=', detail: 'Less than or equal', group: 'Comparison' },
+  { label: 'AND', detail: 'Both conditions are true', group: 'Logical' },
+  { label: 'OR', detail: 'Either condition is true', group: 'Logical' },
+  { label: 'NOT', detail: 'Negate a condition', group: 'Logical' },
+  { label: '(', detail: 'Open group', group: 'Grouping' },
+  { label: ')', detail: 'Close group', group: 'Grouping' },
+]
 
 const initialInputBindings = {
   ifElse1: [
@@ -60,11 +108,20 @@ const initialInputBindings = {
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 2
 
+const decisionVersionCatalog = {
+  'credit-eligibility': { name: 'credit_eligibility_decision', versions: ['V2.1.0', 'V2.0.3', 'V1.9.8'] },
+  'limit-pricing': { name: 'limit_pricing_decision', versions: ['V1.4.2', 'V1.4.1', 'V1.3.6'] },
+  'anti-fraud': { name: 'anti_fraud_decision', versions: ['V0.9.0', 'V0.8.4', 'V0.8.1'] },
+  '1': { name: 'test_luke1', versions: ['V1.0.0', 'V0.9.2', 'V0.9.1'] },
+}
+
 function nodeSize(node) {
   return node.type === 'start' || node.type === 'end'
     ? { width: 132, height: 84 }
-    : node.type === 'ifElse'
+    : node.type === 'ifElse' || node.type === 'block'
       ? { width: 270, height: 154 }
+    : node.type === 'decisionTable'
+      ? { width: 270, height: 92 }
     : { width: 270, height: 122 }
 }
 
@@ -94,6 +151,9 @@ function connectionPath(source, target, edge = {}) {
 function DecisionEditorPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const decisionMeta = decisionVersionCatalog[id] || decisionVersionCatalog['1']
+  const requestedDecisionVersion = new URLSearchParams(location.search).get('version')
   const canvasRef = useRef(null)
   const historyRef = useRef([])
   const panStartRef = useRef(null)
@@ -103,6 +163,7 @@ function DecisionEditorPage() {
   const canvasNodeDragRef = useRef(null)
   const marqueeStartRef = useRef(null)
   const clipboardRef = useRef([])
+  const actionModuleDragRef = useRef(null)
   const [nodes, setNodes] = useState(initialNodes)
   const [edges, setEdges] = useState(initialEdges)
   const [selectedEdgeId, setSelectedEdgeId] = useState('')
@@ -115,37 +176,74 @@ function DecisionEditorPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [panelMode, setPanelMode] = useState('')
   const [variableTab, setVariableTab] = useState('feature')
-  const [showDebug, setShowDebug] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [activeDecisionVersion, setActiveDecisionVersion] = useState(
+    decisionMeta.versions.includes(requestedDecisionVersion) ? requestedDecisionVersion : decisionMeta.versions[0],
+  )
   const [dragPreview, setDragPreview] = useState(null)
   const [inputBindings, setInputBindings] = useState(initialInputBindings)
   const [bindingPicker, setBindingPicker] = useState(null)
   const [conditionValuePicker, setConditionValuePicker] = useState(null)
+  const [conditionExpressionPicker, setConditionExpressionPicker] = useState(null)
   const [startInputTypes, setStartInputTypes] = useState({
     user_id: 'String',
     shop_id: 'String',
   })
   const [conditionRows, setConditionRows] = useState({
-    true: [{ id: 1, variable: 'Feature · credit_report_score', operator: '>=', valueType: 'Number', expression: '700' }],
+    true: [{ id: 1, logic: 'AND', variable: 'Feature · credit_report_score', operator: '>=', expression: '700', rightMode: 'value' }],
   })
   const [conditionBranchOrder, setConditionBranchOrder] = useState(['true'])
-  const [branchAssignments, setBranchAssignments] = useState({
-    true: [
-      { id: 'if-approved', name: 'approved', value: 'true' },
-      { id: 'if-tier', name: 'customer_tier', value: '"A"' },
-    ],
-    else: [
-      { id: 'fallback-approved', name: 'approved', value: 'false' },
-      { id: 'fallback-tier', name: 'customer_tier', value: '"C"' },
-    ],
-  })
   const [actionOperations, setActionOperations] = useState({
     action1: [
-      { id: 'op-limit', target: 'credit_limit', operator: '=', value: 'income * 5' },
-      { id: 'op-rate', target: 'interest_rate', operator: '=', value: '0.12' },
-      { id: 'op-term', target: 'loan_term', operator: '=', value: '12' },
+      {
+        id: 'op-limit',
+        target: 'credit_limit',
+        expression: {
+          type: 'formula',
+          parts: [
+            { kind: 'variable', value: 'Feature · monthly_income' },
+            { kind: 'operator', value: '×' },
+            { kind: 'literal', value: '5', valueType: 'Number' },
+          ],
+        },
+      },
+      {
+        id: 'op-rate',
+        target: 'interest_rate',
+        expression: { type: 'formula', parts: [{ kind: 'literal', value: '0.12', valueType: 'Number' }] },
+      },
+      {
+        id: 'op-term',
+        target: 'loan_term',
+        expression: { type: 'formula', parts: [{ kind: 'literal', value: '12', valueType: 'Number' }] },
+      },
     ],
   })
+  const [actionExpressionPicker, setActionExpressionPicker] = useState(null)
+  const [actionTargetPicker, setActionTargetPicker] = useState(null)
+  const [blockRules, setBlockRules] = useState({})
+  const [blockExpressionPicker, setBlockExpressionPicker] = useState(null)
+  const [decisionTables, setDecisionTables] = useState({
+    decisionTable1: {
+      columns: [
+        { id: 'A', name: 'Condition Column', kind: 'condition' },
+        { id: 'B', name: 'Select Variable', kind: 'result' },
+      ],
+      rows: [
+        {
+          id: 'row-1',
+          cells: {
+            A: null,
+            B: {
+              kind: 'expression',
+              parts: [{ kind: 'function', label: 'get_json_object', detail: 'get_json_object(json, path)' }],
+            },
+          },
+        },
+      ],
+    },
+  })
+  const [decisionTablePicker, setDecisionTablePicker] = useState(null)
+  const [decisionTableExpanded, setDecisionTableExpanded] = useState(false)
 
   const visibleNodeTypes = useMemo(() => {
     const query = nodeSearch.trim().toLowerCase()
@@ -153,6 +251,32 @@ function DecisionEditorPage() {
   }, [nodeSearch])
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId)
+
+  const switchDecisionVersion = (version) => {
+    setActiveDecisionVersion(version)
+    const params = new URLSearchParams(location.search)
+    params.set('version', version)
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true })
+    selectOnly('')
+    setPanelMode('')
+  }
+
+  const closeEditor = () => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('from') === 'policy') {
+      const policyId = params.get('policy') || '1'
+      const returnTab = params.get('returnTab') || 'decisions'
+      navigate(`/policy/${policyId}?tab=${returnTab}`)
+      return
+    }
+    if (params.get('from') === 'policy-canvas') {
+      const policyId = params.get('policy') || '1'
+      const version = params.get('version') || 'V1.0.3'
+      navigate(`/policy/${policyId}/edit?version=${version}`)
+      return
+    }
+    navigate(`/decision/${id}`)
+  }
 
   const selectOnly = (nodeId) => {
     setSelectedEdgeId('')
@@ -207,8 +331,8 @@ function DecisionEditorPage() {
       id: `${definition.type}-${Date.now()}`,
       type: definition.type,
       label: `${definition.label} ${count}`,
-      x: Math.max(20, x),
-      y: Math.max(20, y),
+      x,
+      y,
       status: 'warning',
       inputs: ['Select input'],
       outputs: [`${definition.type}_result`],
@@ -226,6 +350,43 @@ function DecisionEditorPage() {
     }))
     if (definition.type === 'action') {
       setActionOperations((current) => ({ ...current, [node.id]: [] }))
+    }
+    if (definition.type === 'block') {
+      setBlockRules((current) => ({
+        ...current,
+        [node.id]: [{
+          id: `block-rule-${Date.now()}`,
+          conditions: [{
+            id: `block-condition-${Date.now()}`,
+            logic: 'AND',
+            variable: 'Feature · age',
+            operator: '<',
+            valueType: 'Number',
+            expression: '21',
+          }],
+          assignments: [{
+            id: `block-assignment-${Date.now()}`,
+            target: 'reject_reason',
+            value: 'AGE_REJECT',
+          }],
+        }],
+      }))
+      node.inputs = ['age']
+      node.outputs = ['reject_reason']
+    }
+    if (definition.type === 'decisionTable') {
+      setDecisionTables((current) => ({
+        ...current,
+        [node.id]: {
+          columns: [
+            { id: 'A', name: 'Condition Column', kind: 'condition' },
+            { id: 'B', name: 'Select Variable', kind: 'result' },
+          ],
+          rows: [{ id: `table-row-${Date.now()}`, cells: { A: null, B: null } }],
+        },
+      }))
+      node.inputs = ['Select condition']
+      node.outputs = ['table_result']
     }
     if (sourceNodeId) {
       setEdges((current) => [...current, {
@@ -405,7 +566,7 @@ function DecisionEditorPage() {
     if (!activeDrag.moved) return
     setNodes((current) => current.map((node) => (
       node.id === activeDrag.nodeId
-        ? { ...node, x: Math.max(10, activeDrag.originX + deltaX), y: Math.max(10, activeDrag.originY + deltaY) }
+        ? { ...node, x: activeDrag.originX + deltaX, y: activeDrag.originY + deltaY }
         : node
     )))
   }
@@ -556,7 +717,7 @@ function DecisionEditorPage() {
   const addCondition = (branch) => {
     setConditionRows((current) => ({
       ...current,
-      [branch]: [...current[branch], { id: Date.now(), variable: '', operator: '=', valueType: 'Number', expression: '' }],
+      [branch]: [...current[branch], { id: Date.now(), logic: 'AND', variable: '', operator: '=', expression: '', rightMode: 'value' }],
     }))
   }
 
@@ -570,7 +731,9 @@ function DecisionEditorPage() {
   const deleteCondition = (branch, rowId) => {
     setConditionRows((current) => ({
       ...current,
-      [branch]: current[branch].filter((row) => row.id !== rowId),
+      [branch]: current[branch].length <= 1
+        ? current[branch]
+        : current[branch].filter((row) => row.id !== rowId),
     }))
   }
 
@@ -578,9 +741,8 @@ function DecisionEditorPage() {
     const branchId = `branch-${Date.now()}`
     setConditionRows((current) => ({
       ...current,
-      [branchId]: [{ id: Date.now(), variable: '', operator: '=', valueType: 'Number', expression: '' }],
+      [branchId]: [{ id: Date.now(), logic: 'AND', variable: '', operator: '=', expression: '', rightMode: 'value' }],
     }))
-    setBranchAssignments((current) => ({ ...current, [branchId]: [] }))
     setConditionBranchOrder((current) => [...current, branchId])
   }
 
@@ -592,58 +754,233 @@ function DecisionEditorPage() {
       delete next[branch]
       return next
     })
-    setBranchAssignments((current) => {
-      const next = { ...current }
-      delete next[branch]
-      return next
-    })
   }
 
-  const addBranchAssignment = (branch) => {
-    setBranchAssignments((current) => ({
+  const updateBlockRulesForNode = (nodeId, updater) => {
+    setBlockRules((current) => ({
       ...current,
-      [branch]: [...current[branch], { id: `${branch}-${Date.now()}`, name: '', value: '' }],
+      [nodeId]: updater(current[nodeId] || []),
     }))
   }
 
-  const updateBranchAssignment = (branch, rowId, field, value) => {
-    setBranchAssignments((current) => ({
-      ...current,
-      [branch]: current[branch].map((row) => row.id === rowId ? { ...row, [field]: value } : row),
-    }))
+  const addBlockRule = (nodeId) => {
+    const stamp = Date.now()
+    updateBlockRulesForNode(nodeId, (rules) => [...rules, {
+      id: `block-rule-${stamp}`,
+      conditions: [{
+        id: `block-condition-${stamp}`,
+        logic: 'AND',
+        variable: '',
+        operator: '=',
+        valueType: 'String',
+        expression: '',
+      }],
+      assignments: [{
+        id: `block-assignment-${stamp}`,
+        target: 'reject_reason',
+        value: '',
+      }],
+    }])
   }
 
-  const deleteBranchAssignment = (branch, rowId) => {
-    setBranchAssignments((current) => ({
-      ...current,
-      [branch]: current[branch].filter((row) => row.id !== rowId),
-    }))
+  const deleteBlockRule = (nodeId, ruleId) => {
+    updateBlockRulesForNode(nodeId, (rules) => rules.length <= 1 ? rules : rules.filter((rule) => rule.id !== ruleId))
+  }
+
+  const addBlockCondition = (nodeId, ruleId) => {
+    updateBlockRulesForNode(nodeId, (rules) => rules.map((rule) => rule.id === ruleId
+      ? {
+        ...rule,
+        conditions: [...rule.conditions, {
+          id: `block-condition-${Date.now()}`,
+          logic: 'AND',
+          variable: '',
+          operator: '=',
+          valueType: 'String',
+          expression: '',
+        }],
+      }
+      : rule))
+  }
+
+  const updateBlockCondition = (nodeId, ruleId, conditionId, field, value) => {
+    updateBlockRulesForNode(nodeId, (rules) => rules.map((rule) => rule.id === ruleId
+      ? {
+        ...rule,
+        conditions: rule.conditions.map((condition) => condition.id === conditionId ? { ...condition, [field]: value } : condition),
+      }
+      : rule))
+  }
+
+  const updateBlockExpressionParts = (nodeId, ruleId, conditionId, updater) => {
+    updateBlockRulesForNode(nodeId, (rules) => rules.map((rule) => rule.id === ruleId
+      ? {
+        ...rule,
+        conditions: rule.conditions.map((condition) => condition.id === conditionId
+          ? { ...condition, expressionParts: updater(condition.expressionParts || []) }
+          : condition),
+      }
+      : rule))
+  }
+
+  const deleteBlockCondition = (nodeId, ruleId, conditionId) => {
+    updateBlockRulesForNode(nodeId, (rules) => rules.map((rule) => rule.id === ruleId
+      ? {
+        ...rule,
+        conditions: rule.conditions.length <= 1
+          ? rule.conditions
+          : rule.conditions.filter((condition) => condition.id !== conditionId),
+      }
+      : rule))
+  }
+
+  const addBlockAssignment = (nodeId, ruleId) => {
+    updateBlockRulesForNode(nodeId, (rules) => rules.map((rule) => rule.id === ruleId
+      ? {
+        ...rule,
+        assignments: [...rule.assignments, {
+          id: `block-assignment-${Date.now()}`,
+          target: '',
+          value: '',
+        }],
+      }
+      : rule))
+  }
+
+  const updateBlockAssignment = (nodeId, ruleId, assignmentId, field, value) => {
+    updateBlockRulesForNode(nodeId, (rules) => rules.map((rule) => rule.id === ruleId
+      ? {
+        ...rule,
+        assignments: rule.assignments.map((assignment) => assignment.id === assignmentId ? { ...assignment, [field]: value } : assignment),
+      }
+      : rule))
+  }
+
+  const deleteBlockAssignment = (nodeId, ruleId, assignmentId) => {
+    updateBlockRulesForNode(nodeId, (rules) => rules.map((rule) => rule.id === ruleId
+      ? {
+        ...rule,
+        assignments: rule.assignments.filter((assignment) => assignment.id === assignmentId && assignment.target === 'reject_reason'
+          ? true
+          : assignment.id !== assignmentId),
+      }
+      : rule))
   }
 
   const addActionOperation = (nodeId) => {
+    const rows = [
+      ...(actionOperations[nodeId] || []),
+      { id: `operation-${Date.now()}`, target: '', expression: { type: 'formula', parts: [null] } },
+    ]
+    setActionOperations((current) => ({ ...current, [nodeId]: rows }))
+  }
+
+  const commitActionRows = (nodeId, rows) => {
+    setActionOperations((current) => ({ ...current, [nodeId]: rows }))
+    setNodes((current) => current.map((node) => (
+      node.id === nodeId
+        ? {
+          ...node,
+          outputs: rows
+            .map((row) => row.target.trim().split(' · ').at(-1))
+            .filter(Boolean),
+        }
+        : node
+    )))
+  }
+
+  const updateActionTarget = (nodeId, rowId, target) => {
+    const rows = (actionOperations[nodeId] || []).map((row) => row.id === rowId ? { ...row, target } : row)
+    commitActionRows(nodeId, rows)
+    setActionTargetPicker(null)
+  }
+
+  const updateActionExpression = (nodeId, rowId, expression) => {
     setActionOperations((current) => ({
       ...current,
-      [nodeId]: [
-        ...(current[nodeId] || []),
-        { id: `operation-${Date.now()}`, target: '', operator: '=', value: '' },
-      ],
+      [nodeId]: (current[nodeId] || []).map((row) => row.id === rowId ? { ...row, expression } : row),
     }))
   }
 
-  const updateActionOperation = (nodeId, rowId, field, value) => {
-    setActionOperations((current) => ({
-      ...current,
-      [nodeId]: (current[nodeId] || []).map((row) => (
-        row.id === rowId ? { ...row, [field]: value } : row
-      )),
-    }))
+  const setFormulaOperand = (nodeId, rowId, partIndex, operand) => {
+    const row = (actionOperations[nodeId] || []).find((item) => item.id === rowId)
+    const parts = [...(row?.expression?.parts || [null])]
+    parts[partIndex] = operand
+    updateActionExpression(nodeId, rowId, { type: 'formula', parts })
+    setActionExpressionPicker(null)
+  }
+
+  const getActionOperandAtPath = (operation, path) => {
+    let operand = operation?.expression?.parts?.[path[0]]
+    for (let index = 1; index < path.length; index += 1) {
+      operand = operand?.args?.[path[index]]
+    }
+    return operand
+  }
+
+  const setActionOperandAtPath = (nodeId, rowId, path, operand, closePicker = true) => {
+    const row = (actionOperations[nodeId] || []).find((item) => item.id === rowId)
+    const parts = [...(row?.expression?.parts || [null])]
+    if (path.length === 1) {
+      parts[path[0]] = operand
+    } else {
+      const updateNested = (current, depth) => {
+        const args = [...(current?.args || [])]
+        const argIndex = path[depth]
+        args[argIndex] = depth === path.length - 1
+          ? operand
+          : updateNested(args[argIndex], depth + 1)
+        return { ...current, args }
+      }
+      parts[path[0]] = updateNested(parts[path[0]], 1)
+    }
+    updateActionExpression(nodeId, rowId, { type: 'formula', parts })
+    if (closePicker) setActionExpressionPicker(null)
+  }
+
+  const appendFormulaOperator = (nodeId, rowId, operator) => {
+    const row = (actionOperations[nodeId] || []).find((item) => item.id === rowId)
+    const parts = [...(row?.expression?.parts || [null]), { kind: 'operator', value: operator }, null]
+    updateActionExpression(nodeId, rowId, { type: 'formula', parts })
+    setActionExpressionPicker({
+      rowId,
+      kind: 'operand',
+      path: String(parts.length - 1),
+      category: 'all',
+      query: '',
+    })
+  }
+
+  const replaceFormulaOperator = (nodeId, rowId, operatorIndex, operator) => {
+    const row = (actionOperations[nodeId] || []).find((item) => item.id === rowId)
+    const parts = [...(row?.expression?.parts || [null])]
+    parts[operatorIndex] = { kind: 'operator', value: operator }
+    updateActionExpression(nodeId, rowId, { type: 'formula', parts })
+    setActionExpressionPicker(null)
+  }
+
+  const wrapActionOperandWithFunction = (nodeId, operation, path, name, argCount) => {
+    const currentOperand = getActionOperandAtPath(operation, path)
+    setActionOperandAtPath(nodeId, operation.id, path, {
+      kind: 'function',
+      name,
+      args: Array.from({ length: argCount }, (_, index) => index === 0 ? currentOperand || null : null),
+    })
+  }
+
+  const updateLiteralOperand = (nodeId, operation, path, value) => {
+    const currentOperand = getActionOperandAtPath(operation, path)
+    setActionOperandAtPath(nodeId, operation.id, path, {
+      ...(currentOperand || { kind: 'literal', valueType: 'Number' }),
+      value,
+    }, false)
   }
 
   const deleteActionOperation = (nodeId, rowId) => {
-    setActionOperations((current) => ({
-      ...current,
-      [nodeId]: (current[nodeId] || []).filter((row) => row.id !== rowId),
-    }))
+    const currentRows = actionOperations[nodeId] || []
+    if (currentRows.length <= 1) return
+    commitActionRows(nodeId, currentRows.filter((row) => row.id !== rowId))
+    setActionExpressionPicker(null)
   }
 
   const addNodeOutput = (nodeId) => {
@@ -910,30 +1247,141 @@ function DecisionEditorPage() {
     )
   }
 
-  const renderBranchAssignments = (branch) => (
-    <div className="branch-assignment-block">
-      <div>
-        <strong>Branch actions</strong>
-        <button onClick={() => addBranchAssignment(branch)}>＋</button>
+  const getConditionVariableType = (variable, upstreamNodes = []) => {
+    if (!variable) return 'unknown'
+    const featureName = variable.startsWith('Feature · ') ? variable.replace('Feature · ', '') : ''
+    const customName = variable.startsWith('Custom · ') ? variable.replace('Custom · ', '') : ''
+    if (featureName) return featureVariables.find((item) => item.name === featureName)?.type || 'unknown'
+    if (customName) return customConditionVariables.find((item) => item.name === customName)?.type || 'unknown'
+    const outputName = variable.split(' · ').at(-1) || ''
+    if (/approved|enabled|active|success/i.test(outputName)) return 'boolean'
+    if (/age|amount|income|score|limit|rate|term|count|number/i.test(outputName)) return 'number'
+    if (/date|time|created|updated/i.test(outputName)) return 'time'
+    return upstreamNodes.length ? 'string' : 'unknown'
+  }
+
+  const getConditionOperators = (type) => {
+    if (type === 'number') return ['=', '!=', '>', '>=', '<', '<=']
+    if (type === 'boolean') return ['=', '!=']
+    if (type === 'time') return ['=', '!=', 'before', 'after', 'between']
+    if (type === 'array') return ['contains', 'not contains', 'intersects']
+    if (type === 'string') return ['=', '!=', 'contains', 'not contains', 'starts with', 'ends with', 'in', 'not in']
+    return ['=', '!=', '>', '>=', '<', '<=', 'contains', 'in']
+  }
+
+  const formatConditionRow = (row) => {
+    if (!row?.variable) return 'Not configured'
+    if (row.rightMode !== 'expression') {
+      return `${row.variable.replace('Feature · ', '').replace('Custom · ', '')} ${row.operator} ${row.expression}`
+    }
+    const expression = (row.expressionParts || []).map((part) => part.value || '').join(' ')
+    return `${row.variable.replace('Feature · ', '').replace('Custom · ', '')} ${row.operator} ${expression || 'expression'}`
+  }
+
+  const renderConditionExpression = (branch, row, upstreamNodes) => {
+    const parts = row.expressionParts || []
+    const pickerOpen = conditionExpressionPicker?.branch === branch && conditionExpressionPicker?.rowId === row.id
+    const updateParts = (updater) => updateCondition(branch, row.id, 'expressionParts', updater(parts))
+    const addPart = (part) => {
+      updateParts((current) => [...current, part])
+      setConditionExpressionPicker(null)
+    }
+    const variableModules = [
+      ...featureVariables.map((item) => ({ label: item.name, kind: 'variable', value: `Feature · ${item.name}`, sourceType: 'feature' })),
+      ...customConditionVariables.map((item) => ({ label: item.name, kind: 'variable', value: `Custom · ${item.name}`, sourceType: 'custom' })),
+      ...upstreamNodes.flatMap((node) => (node.outputs || []).map((output) => ({
+        label: `${node.label} · ${output}`,
+        kind: 'variable',
+        value: `${node.label} · ${output}`,
+        sourceType: 'local',
+      }))),
+    ]
+    return (
+      <div
+        className="condition-expression-builder block-expression-builder"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault()
+          if (actionModuleDragRef.current) {
+            addPart(actionModuleDragRef.current)
+            actionModuleDragRef.current = null
+          }
+        }}
+      >
+        {!parts.length && <span className="block-expression-placeholder">Build expression</span>}
+        {parts.map((part, index) => (
+          part.kind === 'literal'
+            ? (
+              <span className="block-expression-literal" key={`${row.id}-${index}`}>
+                <input
+                  aria-label="Condition expression constant"
+                  value={part.value}
+                  placeholder={part.valueType === 'String' ? 'Text' : '0'}
+                  onChange={(event) => updateParts((current) => current.map((item, partIndex) => (
+                    partIndex === index ? { ...item, value: event.target.value } : item
+                  )))}
+                />
+                <button onClick={() => updateParts((current) => current.filter((_, partIndex) => partIndex !== index))}>×</button>
+              </span>
+            )
+            : (
+              <button
+                className={`block-expression-token ${part.kind}`}
+                key={`${row.id}-${index}`}
+                title="Click to remove"
+                onClick={() => updateParts((current) => current.filter((_, partIndex) => partIndex !== index))}
+              >
+                {part.kind === 'function' ? 'ƒ ' : ''}{part.value}
+              </button>
+            )
+        ))}
+        <button
+          className="block-expression-add"
+          aria-label="Add condition expression module"
+          onClick={() => setConditionExpressionPicker(pickerOpen ? null : { branch, rowId: row.id })}
+        >＋</button>
+        {pickerOpen && (
+          <div className="block-expression-picker condition-expression-picker">
+            <section>
+              <small>Variables</small>
+              {variableModules.map((module) => (
+                <button
+                  draggable
+                  key={module.value}
+                  onDragStart={() => { actionModuleDragRef.current = module }}
+                  onClick={() => addPart(module)}
+                >{module.label}</button>
+              ))}
+            </section>
+            <section>
+              <small>Functions</small>
+              {['Abs()', 'Round()', 'Concat()', 'Coalesce()', 'DateDiff()'].map((name) => (
+                <button
+                  draggable
+                  key={name}
+                  onDragStart={() => { actionModuleDragRef.current = { kind: 'function', value: name } }}
+                  onClick={() => addPart({ kind: 'function', value: name })}
+                >ƒ {name}</button>
+              ))}
+            </section>
+            <section>
+              <small>Operators</small>
+              <div>
+                {['+', '−', '×', '÷', '%', 'AND', 'OR', '∩', '∪', '(', ')'].map((operator) => (
+                  <button key={operator} onClick={() => addPart({ kind: 'operator', value: operator })}>{operator}</button>
+                ))}
+              </div>
+            </section>
+            <section>
+              <small>Constants</small>
+              <button onClick={() => addPart({ kind: 'literal', value: '0', valueType: 'Number' })}># Number</button>
+              <button onClick={() => addPart({ kind: 'literal', value: '', valueType: 'String' })}>T Text</button>
+            </section>
+          </div>
+        )}
       </div>
-      {(branchAssignments[branch] || []).map((assignment) => (
-        <div className="branch-assignment-row" key={assignment.id}>
-          <input
-            value={assignment.name}
-            placeholder="Variable"
-            onChange={(event) => updateBranchAssignment(branch, assignment.id, 'name', event.target.value)}
-          />
-          <span>=</span>
-          <input
-            value={assignment.value}
-            placeholder="Value or expression"
-            onChange={(event) => updateBranchAssignment(branch, assignment.id, 'value', event.target.value)}
-          />
-          <button onClick={() => deleteBranchAssignment(branch, assignment.id)}>−</button>
-        </div>
-      ))}
-    </div>
-  )
+    )
+  }
 
   const renderConditionGroup = (branch, label, priority) => {
     const upstreamNodes = selectedNode ? getUpstreamNodes(selectedNode.id) : []
@@ -945,87 +1393,919 @@ function DecisionEditorPage() {
         <span>Priority {priority}</span>
         <button aria-label={`Remove ${label}`} onClick={() => deleteConditionBranch(branch)}>−</button>
       </div>
-      {conditionRows[branch].map((row) => (
-        <div className="condition-row" key={row.id}>
-          <select className="condition-variable" value={row.variable} onChange={(event) => updateCondition(branch, row.id, 'variable', event.target.value)}>
-            <option value="">Select Variable</option>
-            <optgroup label="Feature">
-              {featureVariables.map((feature) => <option key={feature.name}>{`Feature · ${feature.name}`}</option>)}
-            </optgroup>
-            {upstreamNodes.map((node) => (
-              <optgroup label={node.label} key={node.id}>
-                {(node.outputs || []).map((output) => <option key={output}>{`${node.label} · ${output}`}</option>)}
-              </optgroup>
-            ))}
-          </select>
-          <div className="condition-comparison">
-            <select value={row.operator || '='} onChange={(event) => updateCondition(branch, row.id, 'operator', event.target.value)}>
-              <option>=</option>
-              <option>&gt;</option>
-              <option>&gt;=</option>
-              <option>&lt;</option>
-              <option>&lt;=</option>
-              <option>!=</option>
-              <option>contains</option>
-              <option>not contains</option>
-            </select>
-            <select value={row.valueType || 'Number'} onChange={(event) => updateCondition(branch, row.id, 'valueType', event.target.value)}>
-              {variableTypeOptions.map((type) => <option key={type}>{type}</option>)}
-            </select>
-            <input
-              value={row.expression}
-              placeholder="Enter or reference a value"
-              onChange={(event) => updateCondition(branch, row.id, 'expression', event.target.value)}
-            />
-            <button
-              title="Reference variable"
-              onClick={() => setConditionValuePicker((current) => (
-                current?.branch === branch && current?.rowId === row.id ? null : { branch, rowId: row.id }
-              ))}
+      {conditionRows[branch].map((row, rowIndex) => {
+        const variableType = getConditionVariableType(row.variable, upstreamNodes)
+        const operators = getConditionOperators(variableType)
+        return (
+        <div className="condition-entry" key={row.id}>
+          {rowIndex > 0 && (
+            <div className="condition-logic">
+              <span />
+              <select aria-label={`Relationship before condition ${rowIndex + 1}`} value={row.logic || 'AND'} onChange={(event) => updateCondition(branch, row.id, 'logic', event.target.value)}>
+                <option>AND</option>
+                <option>OR</option>
+              </select>
+              <span />
+            </div>
+          )}
+          <div className="condition-row">
+            <select
+              aria-label="Left variable"
+              className="condition-variable"
+              value={row.variable}
+              onChange={(event) => {
+                const nextVariable = event.target.value
+                const nextOperators = getConditionOperators(getConditionVariableType(nextVariable, upstreamNodes))
+                updateCondition(branch, row.id, 'variable', nextVariable)
+                if (!nextOperators.includes(row.operator)) updateCondition(branch, row.id, 'operator', nextOperators[0])
+              }}
             >
-              ◇
-            </button>
-            {conditionValuePicker?.branch === branch && conditionValuePicker?.rowId === row.id && (
-              <div className="condition-reference-picker">
-                <strong>Reference variable</strong>
-                <small>Feature</small>
-                {featureVariables.map((feature) => (
+              <option value="">Select left variable</option>
+              <optgroup label="Feature">
+                {featureVariables.map((feature) => <option key={feature.name}>{`Feature · ${feature.name}`}</option>)}
+              </optgroup>
+              <optgroup label="Custom">
+                {customConditionVariables.map((variable) => <option key={variable.name}>{`Custom · ${variable.name}`}</option>)}
+              </optgroup>
+              {upstreamNodes.map((node) => (
+                <optgroup label={node.label} key={node.id}>
+                  {(node.outputs || []).map((output) => <option key={output}>{`${node.label} · ${output}`}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <div className="condition-comparison">
+              <select aria-label="Operator" value={row.operator || '='} onChange={(event) => updateCondition(branch, row.id, 'operator', event.target.value)}>
+                {operators.map((operator) => <option key={operator}>{operator}</option>)}
+              </select>
+              {row.rightMode === 'expression'
+                ? renderConditionExpression(branch, row, upstreamNodes)
+                : (
+                  <input
+                    aria-label="Right variable or value"
+                    value={row.expression}
+                    placeholder={`Enter ${variableType === 'unknown' ? 'value' : variableType} or select variable`}
+                    onChange={(event) => updateCondition(branch, row.id, 'expression', event.target.value)}
+                  />
+                )}
+              <button
+                title="Choose right value source"
+                onClick={() => setConditionValuePicker((current) => (
+                  current?.branch === branch && current?.rowId === row.id ? null : { branch, rowId: row.id }
+                ))}
+              >
+                ◇
+              </button>
+              {conditionValuePicker?.branch === branch && conditionValuePicker?.rowId === row.id && (
+                <div className="condition-reference-picker">
+                  <strong>Right value source</strong>
+                  <div className="condition-source-modes">
+                    <button
+                      onClick={() => {
+                        updateCondition(branch, row.id, 'rightMode', 'value')
+                        setConditionValuePicker(null)
+                      }}
+                    ><span>Direct value</span><code>Type</code></button>
+                    <button
+                      onClick={() => {
+                        updateCondition(branch, row.id, 'rightMode', 'expression')
+                        if (!row.expressionParts) updateCondition(branch, row.id, 'expressionParts', [])
+                        setConditionValuePicker(null)
+                      }}
+                    ><span>Expression</span><code>ƒx</code></button>
+                  </div>
+                  <small>Feature</small>
+                  {featureVariables.map((feature) => (
+                    <button
+                      key={feature.name}
+                      onClick={() => {
+                        updateCondition(branch, row.id, 'rightMode', 'value')
+                        updateCondition(branch, row.id, 'expression', `Feature · ${feature.name}`)
+                        setConditionValuePicker(null)
+                      }}
+                    >
+                      <span>{feature.name}</span><code>{feature.type}</code>
+                    </button>
+                  ))}
+                  <small>Custom</small>
+                  {customConditionVariables.map((variable) => (
+                    <button
+                      key={variable.name}
+                      onClick={() => {
+                        updateCondition(branch, row.id, 'rightMode', 'value')
+                        updateCondition(branch, row.id, 'expression', `Custom · ${variable.name}`)
+                        setConditionValuePicker(null)
+                      }}
+                    >
+                      <span>{variable.name}</span><code>{variable.type}</code>
+                    </button>
+                  ))}
+                  {upstreamNodes.map((node) => (
+                    <div key={node.id}>
+                      <small>{node.label}</small>
+                      {(node.outputs || []).map((output) => (
+                        <button
+                          key={output}
+                          onClick={() => {
+                            updateCondition(branch, row.id, 'rightMode', 'value')
+                            updateCondition(branch, row.id, 'expression', `${node.label} · ${output}`)
+                            setConditionValuePicker(null)
+                          }}
+                        >
+                          <span>{output}</span><code>auto</code>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              aria-label={`Delete ${branch} condition ${rowIndex + 1}`}
+              disabled={conditionRows[branch].length === 1}
+              onClick={() => deleteCondition(branch, row.id)}
+            >−</button>
+          </div>
+        </div>
+      )})}
+      <button className="condition-add" onClick={() => addCondition(branch)}>＋ Add condition</button>
+    </div>
+  )}
+
+  const actionPickerCategories = [
+    { id: 'all', label: 'All', icon: '⌘' },
+    { id: 'feature', label: 'Feature', icon: 'F' },
+    { id: 'local', label: 'Local', icon: 'L' },
+    { id: 'output', label: 'Output', icon: 'O' },
+    { id: 'function', label: 'Function', icon: 'ƒ' },
+    { id: 'constant', label: 'Constant', icon: '#' },
+  ]
+
+  const actionFunctionOptions = [
+    { name: 'Abs', description: 'Absolute value', args: 1 },
+    { name: 'Round', description: 'Round value', args: 2 },
+    { name: 'Concat', description: 'Join values', args: 2 },
+    { name: 'Coalesce', description: 'First non-empty value', args: 2 },
+    { name: 'DateDiff', description: 'Difference between dates', args: 2 },
+  ]
+
+  const actionPickerOptions = selectedNode
+    ? [
+      ...featureVariables.map((variable) => ({
+        category: 'feature',
+        label: variable.name,
+        detail: `${variable.component} · ${variable.type}`,
+        operand: { kind: 'variable', value: `Feature · ${variable.name}`, sourceType: 'feature' },
+      })),
+      ...getUpstreamNodes(selectedNode.id).flatMap((node) => (
+        (node.outputs || []).map((output) => ({
+          category: 'local',
+          label: output,
+          detail: node.label,
+          operand: { kind: 'variable', value: `${node.label} · ${output}`, sourceType: 'local' },
+        }))
+      )),
+      ...(actionOperations[selectedNode.id] || [])
+        .filter((row) => row.target && (!row.target.includes(' · ') || row.target.startsWith('Output ·')))
+        .map((row) => ({
+        category: 'output',
+        label: row.target.split(' · ').at(-1),
+        detail: selectedNode.label,
+        operand: { kind: 'variable', value: `Output · ${row.target.split(' · ').at(-1)}`, sourceType: 'output' },
+        })),
+    ]
+    : []
+
+  const renderBlockExpression = (nodeId, rule, condition) => {
+    const parts = condition.expressionParts || []
+    const pickerOpen = blockExpressionPicker?.conditionId === condition.id
+    const addPart = (part) => {
+      updateBlockExpressionParts(nodeId, rule.id, condition.id, (current) => [...current, part])
+      setBlockExpressionPicker(null)
+    }
+    const removePart = (index) => {
+      updateBlockExpressionParts(nodeId, rule.id, condition.id, (current) => current.filter((_, partIndex) => partIndex !== index))
+    }
+    const updateLiteral = (index, value) => {
+      updateBlockExpressionParts(nodeId, rule.id, condition.id, (current) => current.map((part, partIndex) => (
+        partIndex === index ? { ...part, value } : part
+      )))
+    }
+    return (
+      <div
+        className="block-expression-builder"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault()
+          if (actionModuleDragRef.current) {
+            addPart(actionModuleDragRef.current)
+            actionModuleDragRef.current = null
+          }
+        }}
+      >
+        {!parts.length && <span className="block-expression-placeholder">Build expression</span>}
+        {parts.map((part, index) => (
+          part.kind === 'literal'
+            ? (
+              <span className="block-expression-literal" key={`${condition.id}-${index}`}>
+                <input
+                  aria-label="Expression constant"
+                  value={part.value}
+                  placeholder={part.valueType === 'String' ? 'Text' : '0'}
+                  onChange={(event) => updateLiteral(index, event.target.value)}
+                />
+                <button onClick={() => removePart(index)}>×</button>
+              </span>
+            )
+            : (
+              <button
+                className={`block-expression-token ${part.kind}`}
+                key={`${condition.id}-${index}`}
+                onClick={() => removePart(index)}
+                title="Click to remove"
+              >
+                {part.kind === 'function' ? 'ƒ ' : ''}{part.value}
+              </button>
+            )
+        ))}
+        <button
+          className="block-expression-add"
+          aria-label="Add expression module"
+          onClick={() => setBlockExpressionPicker((current) => current?.conditionId === condition.id ? null : { conditionId: condition.id })}
+        >＋</button>
+        {pickerOpen && (
+          <div className="block-expression-picker">
+            <section>
+              <small>Variables</small>
+              {actionPickerOptions.map((option) => (
+                <button
+                  draggable
+                  key={`${option.category}-${option.label}`}
+                  onDragStart={() => { actionModuleDragRef.current = option.operand }}
+                  onClick={() => addPart(option.operand)}
+                >
+                  <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'output' ? 'O' : 'L'}</i>
+                  {option.label}
+                </button>
+              ))}
+            </section>
+            <section>
+              <small>Functions</small>
+              {actionFunctionOptions.map((option) => (
+                <button
+                  draggable
+                  key={option.name}
+                  onDragStart={() => { actionModuleDragRef.current = { kind: 'function', value: `${option.name}()` } }}
+                  onClick={() => addPart({ kind: 'function', value: `${option.name}()` })}
+                >ƒ {option.name}</button>
+              ))}
+            </section>
+            <section>
+              <small>Operators</small>
+              <div>
+                {['+', '−', '×', '÷', '%', 'AND', 'OR', '∩', '∪', '(', ')'].map((operator) => (
                   <button
-                    key={feature.name}
-                    onClick={() => {
-                      updateCondition(branch, row.id, 'expression', `Feature · ${feature.name}`)
-                      setConditionValuePicker(null)
-                    }}
+                    draggable
+                    key={operator}
+                    onDragStart={() => { actionModuleDragRef.current = { kind: 'operator', value: operator } }}
+                    onClick={() => addPart({ kind: 'operator', value: operator })}
+                  >{operator}</button>
+                ))}
+              </div>
+            </section>
+            <section>
+              <small>Constants</small>
+              <button onClick={() => addPart({ kind: 'literal', value: '0', valueType: 'Number' })}># Number</button>
+              <button onClick={() => addPart({ kind: 'literal', value: '', valueType: 'String' })}>T Text</button>
+            </section>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const formatBlockCondition = (condition) => {
+    if (!condition?.variable) return 'Configure condition'
+    if (condition.operator !== 'Expression') {
+      return `${condition.variable.replace('Feature · ', '')} ${condition.operator} ${condition.expression}`
+    }
+    const expression = (condition.expressionParts || []).map((part) => part.value || '').join(' ')
+    return `${condition.variable.replace('Feature · ', '')} matches ${expression || 'expression'}`
+  }
+
+  const renderActionTargetPicker = (nodeId, operation) => {
+    if (actionTargetPicker?.rowId !== operation.id) return null
+    const category = actionTargetPicker.category || 'feature'
+    const query = (actionTargetPicker.query || '').trim().toLowerCase()
+    const officialOutputs = ['result', 'reject_code', 'reject_reason', 'credit_limit', 'interest_rate', 'loan_term'].map((name) => ({
+      category: 'output',
+      label: name,
+      detail: 'Policy output',
+      target: `Output · ${name}`,
+    }))
+    const options = [
+      ...actionPickerOptions.map((option) => ({
+        category: option.category,
+        label: option.label,
+        detail: option.detail,
+        target: option.operand.value,
+      })),
+      ...officialOutputs,
+    ].filter((option, index, all) => (
+      ['feature', 'local', 'output'].includes(option.category)
+      && option.category === category
+      && (!query || `${option.label} ${option.detail}`.toLowerCase().includes(query))
+      && all.findIndex((item) => item.target === option.target) === index
+    ))
+    return (
+      <div className="action-value-picker action-target-value-picker">
+        <div className="action-picker-search">
+          <span>⌕</span>
+          <input
+            autoFocus
+            aria-label="Search assignment variables"
+            value={actionTargetPicker.query || ''}
+            placeholder="Search variables"
+            onChange={(event) => setActionTargetPicker((current) => ({ ...current, query: event.target.value }))}
+          />
+          <button onClick={() => setActionTargetPicker(null)}>×</button>
+        </div>
+        <div className="action-picker-body">
+          <nav className="action-picker-categories">
+            {[
+              { id: 'feature', label: 'Feature', icon: 'F' },
+              { id: 'local', label: 'Local', icon: 'L' },
+              { id: 'output', label: 'Output', icon: 'O' },
+            ].map((item) => (
+              <button
+                className={category === item.id ? 'active' : ''}
+                key={item.id}
+                onClick={() => setActionTargetPicker((current) => ({ ...current, category: item.id }))}
+              ><i>{item.icon}</i>{item.label}</button>
+            ))}
+          </nav>
+          <div className="action-picker-results">
+            <section>
+              <small>{category}</small>
+              {options.map((option) => (
+                <button key={option.target} onClick={() => updateActionTarget(nodeId, operation.id, option.target)}>
+                  <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'local' ? 'L' : 'O'}</i>
+                  <span><strong>{option.label}</strong><small>{option.detail}</small></span>
+                </button>
+              ))}
+              {!options.length && <p>No matching variables</p>}
+            </section>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const openActionOperandPicker = (operation, path) => {
+    setActionExpressionPicker({
+      rowId: operation.id,
+      kind: 'operand',
+      path: path.join('.'),
+      category: 'all',
+      query: '',
+    })
+  }
+
+  const isActionPickerOpen = (operation, path) => (
+    actionExpressionPicker?.rowId === operation.id
+    && actionExpressionPicker?.kind === 'operand'
+    && actionExpressionPicker?.path === path.join('.')
+  )
+
+  const createActionLiteral = (valueType) => ({
+    kind: 'literal',
+    value: valueType === 'Number' ? '0' : valueType === 'Boolean' ? 'true' : valueType === 'Null' ? 'null' : '',
+    valueType,
+  })
+
+  const renderActionOperandPicker = (nodeId, operation, path) => {
+    if (!isActionPickerOpen(operation, path)) return null
+    const category = actionExpressionPicker.category || 'all'
+    const query = (actionExpressionPicker.query || '').trim().toLowerCase()
+    const currentOperand = getActionOperandAtPath(operation, path)
+    const variableOptions = actionPickerOptions.filter((option) => (
+      (category === 'all' || category === option.category)
+      && (!query || `${option.label} ${option.detail}`.toLowerCase().includes(query))
+    ))
+    const functionOptions = actionFunctionOptions.filter((option) => (
+      (category === 'all' || category === 'function')
+      && (!query || `${option.name} ${option.description}`.toLowerCase().includes(query))
+    ))
+    const showConstants = category === 'all' || category === 'constant'
+    const chooseOperand = (operand) => setActionOperandAtPath(nodeId, operation.id, path, operand)
+    return (
+      <div className="action-value-picker">
+        <div className="action-picker-search">
+          <span>⌕</span>
+          <input
+            autoFocus
+            aria-label="Search variables and functions"
+            value={actionExpressionPicker.query || ''}
+            placeholder="Search variables or functions"
+            onChange={(event) => setActionExpressionPicker((current) => ({ ...current, query: event.target.value }))}
+          />
+          <button onClick={() => setActionExpressionPicker(null)}>×</button>
+        </div>
+        <div className="action-picker-body">
+          <nav className="action-picker-categories">
+            {actionPickerCategories.map((item) => (
+              <button
+                className={category === item.id ? 'active' : ''}
+                key={item.id}
+                onClick={() => setActionExpressionPicker((current) => ({ ...current, category: item.id }))}
+              >
+                <i>{item.icon}</i>{item.label}
+              </button>
+            ))}
+          </nav>
+          <div className="action-picker-results">
+            {variableOptions.length > 0 && (
+              <section>
+                <small>{category === 'all' ? 'Variables' : actionPickerCategories.find((item) => item.id === category)?.label}</small>
+                {variableOptions.map((option) => (
+                  <button
+                    draggable
+                    key={`${option.category}-${option.label}`}
+                    onDragStart={() => { actionModuleDragRef.current = option.operand }}
+                    onClick={() => chooseOperand(option.operand)}
                   >
-                    <span>{feature.name}</span><code>{feature.type}</code>
+                    <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'local' ? 'L' : 'O'}</i>
+                    <span><strong>{option.label}</strong><small>{option.detail}</small></span>
                   </button>
                 ))}
-                {upstreamNodes.map((node) => (
-                  <div key={node.id}>
-                    <small>{node.label}</small>
-                    {(node.outputs || []).map((output) => (
-                      <button
-                        key={output}
-                        onClick={() => {
-                          updateCondition(branch, row.id, 'expression', `${node.label} · ${output}`)
-                          setConditionValuePicker(null)
-                        }}
-                      >
-                        <span>{output}</span><code>auto</code>
-                      </button>
-                    ))}
-                  </div>
+              </section>
+            )}
+            {functionOptions.length > 0 && (
+              <section>
+                <small>Functions</small>
+                {functionOptions.map((option) => (
+                  <button
+                    draggable
+                    key={option.name}
+                    onDragStart={() => {
+                      actionModuleDragRef.current = {
+                        kind: 'function',
+                        name: option.name,
+                        args: Array.from({ length: option.args }, (_, index) => index === 0 ? currentOperand || null : null),
+                      }
+                    }}
+                    onClick={() => wrapActionOperandWithFunction(nodeId, operation, path, option.name, option.args)}
+                  >
+                    <i className="function">ƒ</i>
+                    <span><strong>{option.name}</strong><small>{option.description}</small></span>
+                  </button>
+                ))}
+              </section>
+            )}
+            {showConstants && (
+              <section>
+                <small>Constants</small>
+                <div className="action-picker-constant-modules">
+                  {['Number', 'String', 'Boolean', 'Null'].map((type) => (
+                    <button
+                      draggable
+                      key={type}
+                      onDragStart={() => { actionModuleDragRef.current = createActionLiteral(type) }}
+                      onClick={() => chooseOperand(createActionLiteral(type))}
+                    ><i className="constant">#</i><strong>{type}</strong></button>
+                  ))}
+                </div>
+              </section>
+            )}
+            {!variableOptions.length && !functionOptions.length && !showConstants && <p>No matching modules</p>}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderActionOperand = (nodeId, operation, operand, path) => {
+    if (operand?.kind === 'function') {
+      return (
+        <span
+          className="action-function-module"
+          draggable
+          onDragStart={() => { actionModuleDragRef.current = operand }}
+        >
+          <button className="action-function-label" onClick={() => openActionOperandPicker(operation, path)}>ƒ {operand.name}</button>
+          <span>(</span>
+          {(operand.args || []).map((argument, index) => (
+            <span className="action-function-argument" key={`${operation.id}-${path.join('-')}-${index}`}>
+              {renderActionOperand(nodeId, operation, argument, [...path, index])}
+              {index < operand.args.length - 1 && <b>,</b>}
+            </span>
+          ))}
+          <span>)</span>
+          {renderActionOperandPicker(nodeId, operation, path)}
+        </span>
+      )
+    }
+    if (operand?.kind === 'literal') {
+      return (
+        <span
+          className={`action-expression-literal ${operand.valueType?.toLowerCase()}`}
+          draggable
+          onDragStart={() => { actionModuleDragRef.current = operand }}
+        >
+          <input
+            aria-label={`${operation.target || 'Output'} constant value`}
+            value={operand.value}
+            placeholder={operand.valueType === 'String' ? 'Enter text' : 'Enter number'}
+            onChange={(event) => updateLiteralOperand(nodeId, operation, path, event.target.value)}
+          />
+          <button aria-label="Change value source" onClick={() => openActionOperandPicker(operation, path)}>⌄</button>
+          {renderActionOperandPicker(nodeId, operation, path)}
+        </span>
+      )
+    }
+    const sourceType = operand?.sourceType || (operand?.value?.startsWith('Feature ·') ? 'feature' : operand?.value?.startsWith('Output ·') ? 'output' : 'local')
+    return (
+      <span
+        className="action-expression-variable"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault()
+          if (actionModuleDragRef.current) {
+            setActionOperandAtPath(nodeId, operation.id, path, actionModuleDragRef.current)
+            actionModuleDragRef.current = null
+          }
+        }}
+      >
+        <button
+          className={operand ? 'has-module' : ''}
+          draggable={Boolean(operand)}
+          onDragStart={() => { actionModuleDragRef.current = operand }}
+          onClick={() => openActionOperandPicker(operation, path)}
+        >
+          {operand?.kind === 'variable'
+            ? <><i className={sourceType}>{sourceType === 'feature' ? 'F' : sourceType === 'output' ? 'O' : 'L'}</i>{operand.value}</>
+            : '＋ Select or drop module'}
+        </button>
+        {renderActionOperandPicker(nodeId, operation, path)}
+      </span>
+    )
+  }
+
+  const renderActionExpression = (nodeId, operation) => {
+    const parts = operation.expression?.parts || [null]
+    return (
+      <div
+        className="action-expression-builder"
+        onDragOver={(event) => event.preventDefault()}
+      >
+        {parts.map((part, index) => (
+          part?.kind === 'operator'
+            ? <button
+              className="action-expression-operator"
+              key={`${operation.id}-${index}`}
+              onClick={() => setActionExpressionPicker({ rowId: operation.id, kind: 'operator', operatorIndex: index })}
+            >{part.value}</button>
+            : <span key={`${operation.id}-${index}`}>{renderActionOperand(nodeId, operation, part, [index])}</span>
+        ))}
+        {parts.at(-1) && (
+          <span className="action-add-operator">
+            <button aria-label="Add calculation" onClick={() => setActionExpressionPicker({ rowId: operation.id, kind: 'operator' })}>＋</button>
+            {actionExpressionPicker?.rowId === operation.id && actionExpressionPicker?.kind === 'operator' && (
+              <div className="action-operator-picker">
+                {['+', '−', '×', '÷', '%'].map((operator) => (
+                  <button
+                    key={operator}
+                    onClick={() => Number.isInteger(actionExpressionPicker.operatorIndex)
+                      ? replaceFormulaOperator(nodeId, operation.id, actionExpressionPicker.operatorIndex, operator)
+                      : appendFormulaOperator(nodeId, operation.id, operator)}
+                  >{operator}</button>
                 ))}
               </div>
             )}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  const updateDecisionTable = (nodeId, updater) => {
+    setDecisionTables((current) => ({
+      ...current,
+      [nodeId]: updater(current[nodeId] || { columns: [], rows: [] }),
+    }))
+  }
+
+  const updateDecisionTableCell = (nodeId, rowId, columnId, value) => {
+    updateDecisionTable(nodeId, (table) => ({
+      ...table,
+      rows: table.rows.map((row) => (
+        row.id === rowId ? { ...row, cells: { ...row.cells, [columnId]: value } } : row
+      )),
+    }))
+  }
+
+  const appendDecisionTablePart = (nodeId, rowId, columnId, part) => {
+    updateDecisionTable(nodeId, (table) => ({
+      ...table,
+      rows: table.rows.map((row) => {
+        if (row.id !== rowId) return row
+        const currentCell = row.cells[columnId]
+        const currentParts = currentCell?.kind === 'expression'
+          ? currentCell.parts
+          : currentCell ? [currentCell] : []
+        return {
+          ...row,
+          cells: {
+            ...row.cells,
+            [columnId]: { kind: 'expression', parts: [...currentParts, part] },
+          },
+        }
+      }),
+    }))
+  }
+
+  const updateDecisionTablePart = (nodeId, rowId, columnId, partIndex, patch) => {
+    updateDecisionTable(nodeId, (table) => ({
+      ...table,
+      rows: table.rows.map((row) => {
+        if (row.id !== rowId) return row
+        const cell = row.cells[columnId]
+        return {
+          ...row,
+          cells: {
+            ...row.cells,
+            [columnId]: {
+              kind: 'expression',
+              parts: (cell?.parts || []).map((part, index) => index === partIndex ? { ...part, ...patch } : part),
+            },
+          },
+        }
+      }),
+    }))
+  }
+
+  const removeDecisionTablePart = (nodeId, rowId, columnId, partIndex) => {
+    updateDecisionTable(nodeId, (table) => ({
+      ...table,
+      rows: table.rows.map((row) => {
+        if (row.id !== rowId) return row
+        const nextParts = (row.cells[columnId]?.parts || []).filter((_, index) => index !== partIndex)
+        return {
+          ...row,
+          cells: { ...row.cells, [columnId]: nextParts.length ? { kind: 'expression', parts: nextParts } : null },
+        }
+      }),
+    }))
+  }
+
+  const addDecisionTableRow = (nodeId) => {
+    updateDecisionTable(nodeId, (table) => ({
+      ...table,
+      rows: [
+        ...table.rows,
+        {
+          id: `table-row-${Date.now()}`,
+          cells: Object.fromEntries(table.columns.map((column) => [column.id, null])),
+        },
+      ],
+    }))
+  }
+
+  const removeDecisionTableRow = (nodeId, rowId) => {
+    updateDecisionTable(nodeId, (table) => ({
+      ...table,
+      rows: table.rows.length > 1 ? table.rows.filter((row) => row.id !== rowId) : table.rows,
+    }))
+    setDecisionTablePicker(null)
+  }
+
+  const addDecisionTableColumn = (nodeId) => {
+    updateDecisionTable(nodeId, (table) => {
+      const columnId = String.fromCharCode(65 + table.columns.length)
+      return {
+        columns: [...table.columns, { id: columnId, name: 'Select Variable', kind: 'result' }],
+        rows: table.rows.map((row) => ({ ...row, cells: { ...row.cells, [columnId]: null } })),
+      }
+    })
+  }
+
+  const updateDecisionTableColumn = (nodeId, columnId, name) => {
+    updateDecisionTable(nodeId, (table) => ({
+      ...table,
+      columns: table.columns.map((column) => column.id === columnId ? { ...column, name } : column),
+    }))
+  }
+
+  const decisionTableOptions = (nodeId, category, query = '') => {
+    const upstreamOptions = getUpstreamNodes(nodeId).flatMap((node) => (node.outputs || []).map((output) => ({
+      category: 'upstream',
+      kind: 'variable',
+      label: `${node.label} · ${output}`,
+      detail: `Upstream output · ${node.label}`,
+    })))
+    const options = [
+      ...customConditionVariables.map((variable) => ({
+        category: 'custom',
+        kind: 'variable',
+        label: variable.name,
+        detail: variable.type,
+      })),
+      ...featureVariables.map((variable) => ({
+        category: 'feature',
+        kind: 'variable',
+        label: `Feature · ${variable.name}`,
+        detail: `${variable.component} · ${variable.type}`,
+      })),
+      ...upstreamOptions,
+      ...decisionTableFunctions.map((item) => ({
+        category: 'function',
+        kind: 'function',
+        label: item.name,
+        detail: item.syntax,
+        description: item.description,
+      })),
+      ...decisionTableOperators.map((operator) => ({
+        category: 'operator',
+        kind: 'operator',
+        label: operator.label,
+        detail: operator.detail,
+        description: operator.group,
+      })),
+    ]
+    const normalizedQuery = query.trim().toLowerCase()
+    return options.filter((option) => (
+      (category === 'all' || option.category === category)
+      && (!normalizedQuery || `${option.label} ${option.detail}`.toLowerCase().includes(normalizedQuery))
+    ))
+  }
+
+  const renderDecisionTableCell = (nodeId, row, column) => {
+    const cell = row.cells[column.id]
+    const parts = cell?.kind === 'expression' ? cell.parts : cell ? [cell] : []
+    const pickerOpen = decisionTablePicker?.nodeId === nodeId
+      && decisionTablePicker?.rowId === row.id
+      && decisionTablePicker?.columnId === column.id
+    const category = decisionTablePicker?.category || 'all'
+    const pickerOptions = pickerOpen
+      ? decisionTableOptions(nodeId, category, decisionTablePicker.query || '')
+      : []
+    return (
+      <div className={`decision-table-cell ${pickerOpen ? 'active' : ''}`} key={column.id}>
+        {parts.length ? (
+          <div className="decision-table-expression">
+            {parts.map((part, partIndex) => (
+              part.kind === 'literal' ? (
+                <span className="decision-table-literal-part" key={`${part.kind}-${partIndex}`}>
+                  <input
+                    autoFocus={!part.value}
+                    aria-label={`${column.name} constant ${partIndex + 1}`}
+                    value={part.value}
+                    placeholder={part.valueType === 'Number' ? 'Number' : 'Text'}
+                    onChange={(event) => updateDecisionTablePart(nodeId, row.id, column.id, partIndex, { value: event.target.value })}
+                  />
+                  <button onClick={() => removeDecisionTablePart(nodeId, row.id, column.id, partIndex)}>×</button>
+                </span>
+              ) : (
+                <span className={`decision-table-part ${part.kind}`} key={`${part.kind}-${part.label}-${partIndex}`}>
+                  <i>{part.kind === 'function' ? 'ƒ' : part.kind === 'operator' ? '±' : part.label.startsWith('Feature') ? 'F' : part.category === 'upstream' ? 'N' : 'C'}</i>
+                  <b>{part.label}</b>
+                  <button onClick={() => removeDecisionTablePart(nodeId, row.id, column.id, partIndex)}>×</button>
+                </span>
+              )
+            ))}
+            <button
+              className="decision-table-append-part"
+              aria-label="Add expression module"
+              onClick={() => setDecisionTablePicker({ nodeId, rowId: row.id, columnId: column.id, category: 'all', query: '' })}
+            >＋</button>
           </div>
-          <button aria-label={`Delete ${branch} condition`} onClick={() => deleteCondition(branch, row.id)}>−</button>
+        ) : (
+          <button
+            className="decision-table-empty-cell"
+            onClick={() => setDecisionTablePicker({ nodeId, rowId: row.id, columnId: column.id, category: 'all', query: '' })}
+          >
+            <span>Enter expression</span>
+          </button>
+        )}
+        {pickerOpen && (
+          <div className="decision-table-picker" onClick={(event) => event.stopPropagation()}>
+            <label>
+              <span>⌕</span>
+              <input
+                autoFocus
+                value={decisionTablePicker.query || ''}
+                placeholder="Search variables, functions, or operators"
+                onChange={(event) => setDecisionTablePicker((current) => ({ ...current, query: event.target.value }))}
+              />
+              <button onClick={() => setDecisionTablePicker(null)}>×</button>
+            </label>
+            <div className="decision-table-picker-content">
+              <nav>
+                {decisionTablePickerCategories.map((item) => (
+                  <button
+                    key={item.id}
+                    className={category === item.id ? 'active' : ''}
+                    onClick={() => setDecisionTablePicker((current) => ({ ...current, category: item.id }))}
+                  >
+                    <i className={item.id}>{item.icon}</i>
+                    <span>{item.label}</span>
+                    {item.badge && <em>{item.badge}</em>}
+                  </button>
+                ))}
+              </nav>
+              <section>
+                <small>{category === 'all' ? 'Recent used' : decisionTablePickerCategories.find((item) => item.id === category)?.label}</small>
+                {(category === 'all' || category === 'custom') && (
+                  <div className="decision-table-constants">
+                    {['Number', 'Text'].map((valueType) => (
+                      <button
+                        key={valueType}
+                        onClick={() => {
+                          appendDecisionTablePart(nodeId, row.id, column.id, {
+                            kind: 'literal',
+                            valueType,
+                            value: '',
+                            label: valueType,
+                          })
+                          setDecisionTablePicker(null)
+                        }}
+                      >
+                        <i>#</i><span>{valueType}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {pickerOptions.map((option) => (
+                  <button
+                    className="decision-table-picker-option"
+                    key={`${option.category}-${option.label}`}
+                    onClick={() => {
+                      appendDecisionTablePart(nodeId, row.id, column.id, option)
+                      setDecisionTablePicker(null)
+                    }}
+                  >
+                    <i className={option.category}>{option.kind === 'function' ? 'ƒ' : option.category === 'feature' ? 'F' : option.category === 'upstream' ? 'N' : option.category === 'operator' ? '±' : 'C'}</i>
+                    <span><strong>{option.label}</strong><small>{option.description || option.detail}</small></span>
+                  </button>
+                ))}
+                {!pickerOptions.length && <p>No matching modules</p>}
+              </section>
+            </div>
+            <button
+              className="decision-table-add-variable"
+              onClick={() => {
+                appendDecisionTablePart(nodeId, row.id, column.id, { kind: 'literal', valueType: 'Text', value: '', label: 'Custom value' })
+                setDecisionTablePicker(null)
+              }}
+            >＋ Add Variable</button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderDecisionTableConfig = (node) => {
+    const table = decisionTables[node.id] || { columns: [], rows: [] }
+    return (
+      <section className="decision-table-config">
+        <div className="decision-table-config-title">
+          <div><strong>Configure Rule</strong><span>Build conditions and results with reusable modules</span></div>
+          <button
+            aria-label="Expand decision table"
+            onClick={() => setDecisionTableExpanded((current) => !current)}
+          >{decisionTableExpanded ? '↙' : '⛶'}</button>
         </div>
-      ))}
-      <button className="condition-add" onClick={() => addCondition(branch)}>＋ Add condition (AND)</button>
-      {renderBranchAssignments(branch)}
-    </div>
-  )}
+        <div className="decision-table-grid" style={{ '--table-columns': table.columns.length }}>
+          <div className="decision-table-corner" />
+          {table.columns.map((column) => <div className="decision-table-letter" key={column.id}>{column.id}</div>)}
+          <button className="decision-table-add-column" onClick={() => addDecisionTableColumn(node.id)}>＋</button>
+          <div className="decision-table-row-number">1</div>
+          {table.columns.map((column) => (
+            <input
+              key={column.id}
+              className={`decision-table-column-name ${column.kind}`}
+              aria-label={`Column ${column.id} name`}
+              value={column.name}
+              onChange={(event) => updateDecisionTableColumn(node.id, column.id, event.target.value)}
+            />
+          ))}
+          <div />
+          {table.rows.map((row, rowIndex) => (
+            <div className="decision-table-data-row" key={row.id}>
+              <div className="decision-table-row-number">{rowIndex + 2}</div>
+              {table.columns.map((column) => renderDecisionTableCell(node.id, row, column))}
+              <button
+                className="decision-table-remove-row"
+                disabled={table.rows.length === 1}
+                aria-label={`Remove row ${rowIndex + 2}`}
+                onClick={() => removeDecisionTableRow(node.id, row.id)}
+              >−</button>
+            </div>
+          ))}
+        </div>
+        <button className="decision-table-add-row" onClick={() => addDecisionTableRow(node.id)}>＋ Add row</button>
+      </section>
+    )
+  }
 
   const renderCanvasNodeTitle = (node, selected) => (
     selected ? (
@@ -1065,12 +2345,21 @@ function DecisionEditorPage() {
     >
       <aside className="editor-left-panel">
         <div className="editor-header">
-          <button className="editor-icon-button" onClick={() => navigate(`/decision/${id}`)} aria-label="Close canvas">×</button>
+          <button className="editor-icon-button" onClick={closeEditor} aria-label="Close canvas">×</button>
           <button className="editor-panel-icon" onClick={() => document.documentElement.requestFullscreen?.()} aria-label="Fullscreen">▣</button>
           <div className="editor-title">
-            <div>test_luke1</div>
-            <small>1.0.0 · Autosaved just now</small>
-            <span>Unsubmitted changes</span>
+            <div>{decisionMeta.name}</div>
+            <label className="decision-editor-version">
+              <span>Decision version</span>
+              <select
+                aria-label="Decision version"
+                value={activeDecisionVersion}
+                onChange={(event) => switchDecisionVersion(event.target.value)}
+              >
+                {decisionMeta.versions.map((version) => <option key={version}>{version}</option>)}
+              </select>
+            </label>
+            <small>Autosaved just now · Published only through Policy</small>
           </div>
         </div>
 
@@ -1081,23 +2370,35 @@ function DecisionEditorPage() {
             <span>⌕</span>
           </label>
           <div className="node-list">
-            {visibleNodeTypes.map((definition) => (
-              <button
-                key={definition.type}
-                className="node-item"
-                onMouseDown={(event) => startPaletteDrag(event, definition)}
-                onClick={() => {
-                  if (suppressPaletteClickRef.current) {
-                    suppressPaletteClickRef.current = false
-                    return
-                  }
-                  addNode(definition)
-                }}
-              >
-                <span className="node-icon" style={{ background: definition.color }}>{definition.icon}</span>
-                <span>{definition.label}</span>
-              </button>
-            ))}
+            {[
+              { id: 'basic', label: 'Basic Node' },
+              { id: 'business', label: 'Business Node' },
+            ].map((group) => {
+              const definitions = visibleNodeTypes.filter((definition) => definition.group === group.id)
+              if (!definitions.length) return null
+              return (
+                <section className="node-library-group" key={group.id}>
+                  <small>{group.label}</small>
+                  {definitions.map((definition) => (
+                    <button
+                      key={definition.type}
+                      className="node-item"
+                      onMouseDown={(event) => startPaletteDrag(event, definition)}
+                      onClick={() => {
+                        if (suppressPaletteClickRef.current) {
+                          suppressPaletteClickRef.current = false
+                          return
+                        }
+                        addNode(definition)
+                      }}
+                    >
+                      <span className="node-icon" style={{ background: definition.color }}>{definition.icon}</span>
+                      <span>{definition.label}</span>
+                    </button>
+                  ))}
+                </section>
+              )
+            })}
           </div>
         </div>
       </aside>
@@ -1138,15 +2439,6 @@ function DecisionEditorPage() {
             ☷
           </button>
           <button aria-label="Variables" onClick={() => setPanelMode('variables')}>◇</button>
-          <button
-            className="submit-button"
-            onClick={() => {
-              setSubmitted(true)
-              window.setTimeout(() => setSubmitted(false), 2200)
-            }}
-          >
-            Submit
-          </button>
         </div>
 
         <div
@@ -1259,7 +2551,7 @@ function DecisionEditorPage() {
                           return (
                             <span key={branch}>
                               <b>{branchLabel}</b>
-                              <em>{condition?.variable ? `${condition.variable.replace('Feature · ', '')} ${condition.operator} ${condition.expression}` : 'Not configured'}</em>
+                              <em>{formatConditionRow(condition)}</em>
                               <i />
                               <button
                                 className="branch-add-button"
@@ -1343,6 +2635,26 @@ function DecisionEditorPage() {
                           )}
                         </span>
                       </div>
+                    ) : node.type === 'block' ? (
+                      <div className="block-node-preview">
+                        {(blockRules[node.id] || []).slice(0, 3).map((rule, index) => {
+                          const condition = rule.conditions[0]
+                          return (
+                            <span key={rule.id}>
+                              <b>{index + 1}</b>
+                              <em>{formatBlockCondition(condition)}</em>
+                              <strong>Reject</strong>
+                            </span>
+                          )
+                        })}
+                        {(blockRules[node.id] || []).length > 3 && <small>＋{blockRules[node.id].length - 3} more rules</small>}
+                      </div>
+                    ) : node.type === 'decisionTable' ? (
+                      <div className="decision-table-node-preview">
+                        <span><b>{decisionTables[node.id]?.columns.length || 2}</b> columns</span>
+                        <i />
+                        <span><b>{decisionTables[node.id]?.rows.length || 1}</b> rules</span>
+                      </div>
                     ) : (
                       <>
                         <span className="node-io-row"><b>Input</b><span>{(node.inputs || ['Not configured']).join(' · ')}</span></span>
@@ -1398,10 +2710,6 @@ function DecisionEditorPage() {
           </div>
         )}
 
-        <button className="debug-button canvas-toolbar" onClick={() => setShowDebug((current) => !current)}>
-          {showDebug ? 'Close Debug' : 'Debug'}
-        </button>
-
         <div className="bottom-canvas-toolbar canvas-toolbar">
           <button onClick={organizeCanvas} data-tooltip="Organize Canvas">⌘</button>
           <button onClick={fitCanvas} data-tooltip="Fit to view">⌗</button>
@@ -1413,40 +2721,32 @@ function DecisionEditorPage() {
           <button className="assistant-button" aria-label="Assistant">✦</button>
         </div>
 
-        {showDebug && (
-          <div className="debug-console">
-            <strong>Debug result</strong>
-            <div><span>✓</span> Input validated</div>
-            <div><span>✓</span> Assignment Rule 1 · 12 ms</div>
-            <div><span>✓</span> Decision Table 1 · 8 ms</div>
-            <div><span>✓</span> Workflow completed successfully</div>
-          </div>
-        )}
-
-        {submitted && <div className="submit-toast">✓ Decision submitted for approval</div>}
       </main>
 
       {panelMode && (
-        <aside className="editor-right-drawer">
+        <aside className={`editor-right-drawer ${selectedNode?.type === 'decisionTable' ? 'decision-table-drawer' : ''} ${decisionTableExpanded && selectedNode?.type === 'decisionTable' ? 'decision-table-expanded' : ''}`}>
           {panelMode === 'config' && selectedNode && (
             <>
               <div className="drawer-header">
                 <button onClick={() => setPanelMode('')} aria-label="Close configuration">×</button>
                 <h3>{selectedNode.label}</h3>
                 <span>ⓘ</span>
-                <button className="drawer-debug" onClick={() => setShowDebug(true)}>Debug</button>
               </div>
               <div className="drawer-body">
-                <div className="node-summary-card">
-                  <span className="canvas-node-icon" style={{ background: nodeTypes.find((item) => item.type === selectedNode.type)?.color || '#edf0f4' }}>
-                    {selectedNode.type === 'start' ? '▶' : selectedNode.type === 'end' ? '■' : nodeTypes.find((item) => item.type === selectedNode.type)?.icon}
-                  </span>
-                  <div>
-                    <small>NODE TYPE</small>
-                    <strong>{selectedNode.type === 'start' ? 'Start' : selectedNode.type === 'end' ? 'End' : nodeTypes.find((item) => item.type === selectedNode.type)?.label}</strong>
+                {selectedNode.type !== 'decisionTable' && (
+                  <div className="node-summary-card">
+                    <span className="canvas-node-icon" style={{ background: nodeTypes.find((item) => item.type === selectedNode.type)?.color || '#edf0f4' }}>
+                      {selectedNode.type === 'start' ? '▶' : selectedNode.type === 'end' ? '■' : nodeTypes.find((item) => item.type === selectedNode.type)?.icon}
+                    </span>
+                    <div>
+                      <small>NODE TYPE</small>
+                      <strong>{selectedNode.type === 'start' ? 'Start' : selectedNode.type === 'end' ? 'End' : nodeTypes.find((item) => item.type === selectedNode.type)?.label}</strong>
+                    </div>
                   </div>
-                </div>
-                {selectedNode.type === 'ifElse' ? (
+                )}
+                {selectedNode.type === 'decisionTable' ? (
+                  renderDecisionTableConfig(selectedNode)
+                ) : selectedNode.type === 'ifElse' ? (
                   <>
                     <section className="selector-config">
                       <div className="selector-config-title">
@@ -1463,60 +2763,174 @@ function DecisionEditorPage() {
                       ))}
                       <div className="selector-else-card">
                         <div><strong>ELSE</strong><span>Runs when no condition above is met</span></div>
-                        {renderBranchAssignments('else')}
                       </div>
                     </section>
                   </>
+                ) : selectedNode.type === 'block' ? (
+                  <>
+                    <section className="block-config-section">
+                      <div className="block-config-title">
+                        <div>
+                          <strong>Block rules</strong>
+                          <span>The first matched rule rejects and stops the decision</span>
+                        </div>
+                        <button onClick={() => addBlockRule(selectedNode.id)}>＋ Add rule</button>
+                      </div>
+                      {(blockRules[selectedNode.id] || []).map((rule, ruleIndex) => (
+                        <article className="block-rule-card" key={rule.id}>
+                          <header>
+                            <span className="block-rule-index">{ruleIndex + 1}</span>
+                            <div><strong>Block rule {ruleIndex + 1}</strong><small>Priority {ruleIndex + 1}</small></div>
+                            <button
+                              aria-label={`Delete block rule ${ruleIndex + 1}`}
+                              disabled={(blockRules[selectedNode.id] || []).length === 1}
+                              onClick={() => deleteBlockRule(selectedNode.id, rule.id)}
+                            >−</button>
+                          </header>
+                          <div className="block-rule-conditions">
+                            <div className="block-condition-heading">
+                              <strong>IF</strong>
+                              <button className="block-add-condition" onClick={() => addBlockCondition(selectedNode.id, rule.id)}>＋ Condition</button>
+                            </div>
+                            {rule.conditions.map((condition, conditionIndex) => (
+                              <div className={`block-condition-row ${condition.operator === 'Expression' ? 'expression-mode' : ''}`} key={condition.id}>
+                                {conditionIndex > 0 && (
+                                  <select
+                                    aria-label="Condition logic"
+                                    value={condition.logic}
+                                    onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'logic', event.target.value)}
+                                  >
+                                    <option>AND</option>
+                                    <option>OR</option>
+                                  </select>
+                                )}
+                                <select
+                                  aria-label="Block condition variable"
+                                  value={condition.variable}
+                                  onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'variable', event.target.value)}
+                                >
+                                  <option value="">Select variable</option>
+                                  <optgroup label="Feature">
+                                    {featureVariables.map((variable) => <option key={variable.name} value={`Feature · ${variable.name}`}>{variable.name}</option>)}
+                                  </optgroup>
+                                  <optgroup label="Upstream">
+                                    {getUpstreamNodes(selectedNode.id).flatMap((node) => (node.outputs || []).map((output) => (
+                                      <option key={`${node.id}-${output}`} value={`${node.label} · ${output}`}>{node.label} · {output}</option>
+                                    )))}
+                                  </optgroup>
+                                </select>
+                                <select
+                                  aria-label="Block condition operator"
+                                  value={condition.operator}
+                                  onChange={(event) => {
+                                    updateBlockCondition(selectedNode.id, rule.id, condition.id, 'operator', event.target.value)
+                                    if (event.target.value === 'Expression' && !condition.expressionParts) {
+                                      updateBlockExpressionParts(selectedNode.id, rule.id, condition.id, () => [])
+                                    }
+                                  }}
+                                >
+                                  {['=', '!=', '>', '>=', '<', '<=', 'in', 'not in', 'Expression'].map((operator) => <option key={operator}>{operator}</option>)}
+                                </select>
+                                {condition.operator === 'Expression'
+                                  ? renderBlockExpression(selectedNode.id, rule, condition)
+                                  : (
+                                    <input
+                                      aria-label="Block condition value"
+                                      value={condition.expression}
+                                      placeholder="Value"
+                                      onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'expression', event.target.value)}
+                                    />
+                                  )}
+                                <button
+                                  aria-label="Remove block condition"
+                                  disabled={rule.conditions.length === 1}
+                                  onClick={() => deleteBlockCondition(selectedNode.id, rule.id, condition.id)}
+                                >−</button>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="block-assignments">
+                            <div className="block-assignment-title">
+                              <strong>Action</strong>
+                              <button aria-label="Add block return value" onClick={() => addBlockAssignment(selectedNode.id, rule.id)}>＋</button>
+                            </div>
+                            {rule.assignments.map((assignment) => (
+                              <div className="block-assignment-row" key={assignment.id}>
+                                <input
+                                  aria-label="Block return variable"
+                                  value={assignment.target}
+                                  readOnly={assignment.target === 'reject_reason'}
+                                  placeholder="Variable"
+                                  onChange={(event) => updateBlockAssignment(selectedNode.id, rule.id, assignment.id, 'target', event.target.value)}
+                                />
+                                <strong>=</strong>
+                                <input
+                                  aria-label={`${assignment.target || 'Block'} value`}
+                                  value={assignment.value}
+                                  placeholder={assignment.target === 'reject_reason' ? 'Enter reject reason' : 'Enter value'}
+                                  onChange={(event) => updateBlockAssignment(selectedNode.id, rule.id, assignment.id, 'value', event.target.value)}
+                                />
+                                <button
+                                  aria-label="Remove block return value"
+                                  disabled={assignment.target === 'reject_reason'}
+                                  onClick={() => deleteBlockAssignment(selectedNode.id, rule.id, assignment.id)}
+                                >−</button>
+                              </div>
+                            ))}
+                          </div>
+                        </article>
+                      ))}
+                    </section>
+                    <p className="drawer-tip">When a rule matches, the workflow returns its configured values and stops immediately.</p>
+                  </>
                 ) : selectedNode.type === 'action' ? (
                   <>
-                    {renderInputBindings(selectedNode)}
-                    <section className="action-operation-section">
+                    <section className="action-assignment-section">
                       <div className="action-section-title">
-                        <div><strong>Operations</strong><span>Assign values or calculate with + − × ÷</span></div>
+                        <div><strong>Assignments</strong><span>Each row creates an output and assigns its value</span></div>
                         <button onClick={() => addActionOperation(selectedNode.id)}>＋</button>
                       </div>
-                      <div className="action-operation-header"><span>Variable</span><span>Operation</span><span>Value / expression</span></div>
+                      <div className="action-assignment-header"><span>Assignment variable</span><span /><span>Value / expression</span><span /></div>
                       {(actionOperations[selectedNode.id] || []).map((operation) => (
-                        <div className="action-operation-row" key={operation.id}>
-                          <input
-                            value={operation.target}
-                            placeholder="Variable"
-                            onChange={(event) => updateActionOperation(selectedNode.id, operation.id, 'target', event.target.value)}
-                          />
-                          <select
-                            value={operation.operator}
-                            onChange={(event) => updateActionOperation(selectedNode.id, operation.id, 'operator', event.target.value)}
-                          >
-                            <option value="=">Assign =</option>
-                            <option value="+">Add +</option>
-                            <option value="-">Subtract −</option>
-                            <option value="*">Multiply ×</option>
-                            <option value="/">Divide ÷</option>
-                          </select>
-                          <input
-                            value={operation.value}
-                            placeholder="Value or expression"
-                            onChange={(event) => updateActionOperation(selectedNode.id, operation.id, 'value', event.target.value)}
-                          />
-                          <button onClick={() => deleteActionOperation(selectedNode.id, operation.id)}>−</button>
+                        <div className="action-assignment-row" key={operation.id}>
+                          <div className="action-target-wrap">
+                            <button
+                              className={operation.target ? 'action-target-button selected' : 'action-target-button'}
+                              aria-label="Select assignment target"
+                              onClick={() => setActionTargetPicker({
+                                rowId: operation.id,
+                                category: operation.target.startsWith('Feature ·')
+                                  ? 'feature'
+                                  : operation.target.startsWith('Output ·') || !operation.target.includes(' · ')
+                                    ? 'output'
+                                    : 'local',
+                                query: '',
+                              })}
+                            >
+                              {operation.target
+                                ? <>
+                                  <i className={operation.target.startsWith('Feature ·') ? 'feature' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'output' : 'local'}>
+                                    {operation.target.startsWith('Feature ·') ? 'F' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'O' : 'L'}
+                                  </i>
+                                  <span>{operation.target}</span>
+                                </>
+                                : <span>Select variable</span>}
+                              <b>⌄</b>
+                            </button>
+                            {['result', 'reject_code', 'reject_reason'].includes(operation.target.split(' · ').at(-1)) && <span>Official</span>}
+                            {renderActionTargetPicker(selectedNode.id, operation)}
+                          </div>
+                          <strong className="action-equals">=</strong>
+                          {renderActionExpression(selectedNode.id, operation)}
+                          <button
+                            className="action-delete-assignment"
+                            disabled={(actionOperations[selectedNode.id] || []).length === 1}
+                            onClick={() => deleteActionOperation(selectedNode.id, operation.id)}
+                          >−</button>
                         </div>
                       ))}
                     </section>
-                    <section className="action-output-section">
-                      <div className="action-section-title">
-                        <div><strong>Outputs</strong><span>Create values available to downstream nodes</span></div>
-                        <button onClick={() => addNodeOutput(selectedNode.id)}>＋</button>
-                      </div>
-                      {(selectedNode.outputs || []).map((output, index) => (
-                        <div className="action-output-row" key={index}>
-                          <input value={output} onChange={(event) => renameNodeOutput(selectedNode.id, output, event.target.value)} />
-                          <select defaultValue="Number">
-                            {variableTypeOptions.map((type) => <option key={type}>{type}</option>)}
-                          </select>
-                          <button onClick={() => deleteNodeOutput(selectedNode.id, output)}>−</button>
-                        </div>
-                      ))}
-                    </section>
+                    <p className="drawer-tip">Each row defaults to a direct assignment. Select a Feature, upstream Local, or Output on the left; use the plus button only when a calculation is needed.</p>
                   </>
                 ) : selectedNode.type === 'start' ? (
                   <>

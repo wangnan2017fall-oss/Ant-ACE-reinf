@@ -15,11 +15,11 @@ import DecisionEditorPage from '../modules/decision/canvas/DecisionEditorPage'
 import DecisionDetailPage from '../modules/decision/detail/DecisionDetailPage'
 import DecisionPage from '../modules/decision/list/DecisionPage'
 import PolicyDetailPage from '../modules/policy/detail/PolicyDetailPage'
+import PolicyCanvasEditorPage from '../modules/policy/canvas/PolicyCanvasEditorPage'
 import PolicyPage from '../modules/policy/list/PolicyPage'
 import TicketPage from '../modules/ticket/TicketPage'
 import ApprovalCenterPage from '../modules/approval-center/ApprovalCenterPage'
-import DataAssetHubPage from '../modules/data-asset/DataAssetHubPage'
-import BusinessHubPage from '../modules/business/BusinessHubPage'
+import ApprovalHistoryPage from '../modules/approval-center/ApprovalHistoryPage'
 
 function AppRoutes() {
   return (
@@ -29,7 +29,6 @@ function AppRoutes() {
       <Route path="/decision/:id" element={<DecisionDetailPage />} />
       <Route path="/decision/:id/edit" element={<DecisionEditorPage />} />
       <Route path="/data" element={<DataSourcePage />} />
-      <Route path="/data-asset" element={<DataAssetHubPage />} />
       <Route path="/data-source" element={<DataSourcePage />} />
       <Route path="/data-source/:id" element={<DataSourceDetailPage />} />
       <Route path="/data-connector" element={<DataConnectorPage />} />
@@ -38,6 +37,7 @@ function AppRoutes() {
       <Route path="/feature" element={<FeaturePage />} />
       <Route path="/feature/:id" element={<FeatureDetailPage />} />
       <Route path="/policy" element={<PolicyPage />} />
+      <Route path="/policy/:id/edit" element={<PolicyCanvasEditorPage />} />
       <Route path="/policy/:id" element={<PolicyDetailPage />} />
       <Route path="/testing" element={<TestingPage />} />
       <Route path="/case-tracker" element={<CaseTrackerPage />} />
@@ -46,7 +46,8 @@ function AppRoutes() {
       <Route path="/ai-decision" element={<AIDecisionPage />} />
       <Route path="/ticket" element={<TicketPage />} />
       <Route path="/approval" element={<ApprovalCenterPage />} />
-      <Route path="/business" element={<BusinessHubPage />} />
+      <Route path="/approval/progress" element={<ApprovalCenterPage />} />
+      <Route path="/approval/my-task" element={<ApprovalHistoryPage />} />
     </Routes>
   )
 }
