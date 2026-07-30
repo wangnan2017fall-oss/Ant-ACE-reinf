@@ -4,9 +4,10 @@ import './DecisionEditorPage.css'
 
 const nodeTypes = [
   { type: 'ifElse', label: 'If-Else', icon: '≷', color: '#d8c6ff', group: 'basic' },
-  { type: 'action', label: 'Action', icon: 'ƒ', color: '#ffd2c5', group: 'basic' },
+  { type: 'action', label: 'Assignment', icon: '▤', color: '#ffd2c5', group: 'basic' },
   { type: 'block', label: 'Block', icon: '⊘', color: '#ffc8ce', group: 'business' },
   { type: 'decisionTable', label: 'Decision Table', icon: '▦', color: '#c9ddff', group: 'business' },
+  { type: 'cross', label: 'Cross', icon: '⊞', color: '#bfeaf5', group: 'business' },
 ]
 
 const initialNodes = [
@@ -28,6 +29,8 @@ const featureVariables = [
   { name: 'monthly_income', type: 'number', component: 'User', key: 'user_id' },
   { name: 'credit_report_score', type: 'number', component: 'Credit Report', key: 'user_id' },
   { name: 'shop_risk_level', type: 'string', component: 'Shop', key: 'shop_id' },
+  { name: 'rating', type: 'string', component: 'User', key: 'user_id' },
+  { name: 'profile_tier_grp', type: 'string', component: 'User', key: 'user_id' },
 ]
 
 const customConditionVariables = [
@@ -120,12 +123,12 @@ function nodeSize(node) {
     ? { width: 132, height: 84 }
     : node.type === 'ifElse' || node.type === 'block'
       ? { width: 270, height: 154 }
-    : node.type === 'decisionTable'
+    : node.type === 'decisionTable' || node.type === 'cross'
       ? { width: 270, height: 92 }
     : { width: 270, height: 122 }
 }
 
-function connectionPath(source, target, edge = {}) {
+function connectionGeometry(source, target, edge = {}) {
   const sourceSize = nodeSize(source)
   const targetSize = nodeSize(target)
   const sourceCenterX = source.x + sourceSize.width / 2
@@ -138,14 +141,28 @@ function connectionPath(source, target, edge = {}) {
   if (Math.abs(targetCenterX - sourceCenterX) > Math.abs(targetCenterY - sourceCenterY)) {
     const startX = targetCenterX >= sourceCenterX ? source.x + sourceSize.width : source.x
     const endX = targetCenterX >= sourceCenterX ? target.x : target.x + targetSize.width
-    const middleX = (startX + endX) / 2
-    return `M ${startX} ${sourceCenterY} L ${middleX} ${sourceCenterY} L ${middleX} ${targetCenterY} L ${endX} ${targetCenterY}`
+    const direction = endX >= startX ? 1 : -1
+    const controlOffset = Math.min(180, Math.max(48, Math.abs(endX - startX) * 0.46))
+    return {
+      path: `M ${startX} ${sourceCenterY} C ${startX + direction * controlOffset} ${sourceCenterY}, ${endX - direction * controlOffset} ${targetCenterY}, ${endX} ${targetCenterY}`,
+      endX,
+      endY: targetCenterY,
+      labelX: (startX + endX) / 2,
+      labelY: (sourceCenterY + targetCenterY) / 2,
+    }
   }
 
   const startY = targetCenterY >= sourceCenterY ? source.y + sourceSize.height : source.y
   const endY = targetCenterY >= sourceCenterY ? target.y : target.y + targetSize.height
-  const middleY = (startY + endY) / 2
-  return `M ${sourceCenterX} ${startY} L ${sourceCenterX} ${middleY} L ${targetCenterX} ${middleY} L ${targetCenterX} ${endY}`
+  const direction = endY >= startY ? 1 : -1
+  const controlOffset = Math.min(160, Math.max(44, Math.abs(endY - startY) * 0.46))
+  return {
+    path: `M ${sourceCenterX} ${startY} C ${sourceCenterX} ${startY + direction * controlOffset}, ${targetCenterX} ${endY - direction * controlOffset}, ${targetCenterX} ${endY}`,
+    endX: targetCenterX,
+    endY,
+    labelX: (sourceCenterX + targetCenterX) / 2,
+    labelY: (startY + endY) / 2,
+  }
 }
 
 function DecisionEditorPage() {
@@ -244,6 +261,7 @@ function DecisionEditorPage() {
   })
   const [decisionTablePicker, setDecisionTablePicker] = useState(null)
   const [decisionTableExpanded, setDecisionTableExpanded] = useState(false)
+  const [crossTables, setCrossTables] = useState({})
 
   const visibleNodeTypes = useMemo(() => {
     const query = nodeSearch.trim().toLowerCase()
@@ -349,7 +367,14 @@ function DecisionEditorPage() {
       }],
     }))
     if (definition.type === 'action') {
-      setActionOperations((current) => ({ ...current, [node.id]: [] }))
+      setActionOperations((current) => ({
+        ...current,
+        [node.id]: [{
+          id: `operation-${Date.now()}`,
+          target: '',
+          expression: { type: 'formula', parts: [null] },
+        }],
+      }))
     }
     if (definition.type === 'block') {
       setBlockRules((current) => ({
@@ -387,6 +412,28 @@ function DecisionEditorPage() {
       }))
       node.inputs = ['Select condition']
       node.outputs = ['table_result']
+    }
+    if (definition.type === 'cross') {
+      setCrossTables((current) => ({
+        ...current,
+        [node.id]: {
+          rowVariable: 'Feature · rating',
+          columnVariable: 'Feature · profile_tier_grp',
+          outputVariable: 'profile_coef',
+          columns: [
+            { id: `cross-column-${Date.now()}-1`, value: 'tier1' },
+            { id: `cross-column-${Date.now()}-2`, value: 'tier2' },
+            { id: `cross-column-${Date.now()}-3`, value: 'else' },
+          ],
+          rows: [
+            { id: `cross-row-${Date.now()}-1`, value: 'A', results: ['1.6', '1.3', '1'] },
+            { id: `cross-row-${Date.now()}-2`, value: 'B', results: ['1.6', '1.3', '1'] },
+            { id: `cross-row-${Date.now()}-3`, value: 'else', results: ['1', '1', '1'] },
+          ],
+        },
+      }))
+      node.inputs = ['rating', 'profile_tier_grp']
+      node.outputs = ['profile_coef']
     }
     if (sourceNodeId) {
       setEdges((current) => [...current, {
@@ -1753,6 +1800,24 @@ function DecisionEditorPage() {
                 </button>
               ))}
               {!options.length && <p>No matching variables</p>}
+              {category === 'output' && (
+                <div className="assignment-create-variable">
+                  <input
+                    aria-label="New assignment variable name"
+                    value={actionTargetPicker.newName || ''}
+                    placeholder="New variable name"
+                    onChange={(event) => setActionTargetPicker((current) => ({ ...current, newName: event.target.value }))}
+                  />
+                  <button
+                    disabled={!actionTargetPicker.newName?.trim()}
+                    onClick={() => updateActionTarget(
+                      nodeId,
+                      operation.id,
+                      `Output · ${actionTargetPicker.newName.trim()}`,
+                    )}
+                  >＋ Create</button>
+                </div>
+              )}
             </section>
           </div>
         </div>
@@ -1832,7 +1897,7 @@ function DecisionEditorPage() {
                     key={`${option.category}-${option.label}`}
                     onDragStart={() => { actionModuleDragRef.current = option.operand }}
                     onClick={() => chooseOperand(option.operand)}
-                  >
+                >
                     <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'local' ? 'L' : 'O'}</i>
                     <span><strong>{option.label}</strong><small>{option.detail}</small></span>
                   </button>
@@ -2307,6 +2372,218 @@ function DecisionEditorPage() {
     )
   }
 
+  const updateCrossTable = (nodeId, updater) => {
+    setCrossTables((current) => ({
+      ...current,
+      [nodeId]: updater(current[nodeId]),
+    }))
+  }
+
+  const updateCrossAxis = (nodeId, field, value) => {
+    updateCrossTable(nodeId, (table) => ({ ...table, [field]: value }))
+    if (field === 'outputVariable') {
+      commitNodes((current) => current.map((node) => (
+        node.id === nodeId ? { ...node, outputs: [value || 'cross_result'] } : node
+      )))
+    }
+  }
+
+  const addCrossColumn = (nodeId) => {
+    updateCrossTable(nodeId, (table) => ({
+      ...table,
+      columns: [...table.columns, { id: `cross-column-${Date.now()}`, value: 'New value' }],
+      rows: table.rows.map((row) => ({ ...row, results: [...row.results, ''] })),
+    }))
+  }
+
+  const removeCrossColumn = (nodeId, columnIndex) => {
+    updateCrossTable(nodeId, (table) => {
+      if (table.columns.length === 1) return table
+      return {
+        ...table,
+        columns: table.columns.filter((_, index) => index !== columnIndex),
+        rows: table.rows.map((row) => ({
+          ...row,
+          results: row.results.filter((_, index) => index !== columnIndex),
+        })),
+      }
+    })
+  }
+
+  const addCrossRow = (nodeId) => {
+    updateCrossTable(nodeId, (table) => ({
+      ...table,
+      rows: [
+        ...table.rows,
+        {
+          id: `cross-row-${Date.now()}`,
+          value: 'New value',
+          results: table.columns.map(() => ''),
+        },
+      ],
+    }))
+  }
+
+  const removeCrossRow = (nodeId, rowId) => {
+    updateCrossTable(nodeId, (table) => ({
+      ...table,
+      rows: table.rows.length === 1 ? table.rows : table.rows.filter((row) => row.id !== rowId),
+    }))
+  }
+
+  const renderCrossVariableOptions = (nodeId) => (
+    <>
+      <option value="">Select variable</option>
+      <optgroup label="Custom">
+        {customConditionVariables.map((variable) => (
+          <option key={`custom-${variable.name}`} value={`Custom · ${variable.name}`}>{variable.name}</option>
+        ))}
+      </optgroup>
+      <optgroup label="Feature">
+        {featureVariables.map((variable) => (
+          <option key={`feature-${variable.name}`} value={`Feature · ${variable.name}`}>{variable.name}</option>
+        ))}
+      </optgroup>
+      <optgroup label="Upstream Output">
+        {getUpstreamNodes(nodeId).flatMap((upstreamNode) => (upstreamNode.outputs || []).map((output) => (
+          <option key={`${upstreamNode.id}-${output}`} value={`${upstreamNode.label} · ${output}`}>
+            {upstreamNode.label} · {output}
+          </option>
+        )))}
+      </optgroup>
+    </>
+  )
+
+  const renderCrossConfig = (node) => {
+    const table = crossTables[node.id]
+    if (!table) return null
+    return (
+      <section className="cross-config">
+        <div className="decision-table-config-title">
+          <div>
+            <strong>Configure Cross</strong>
+            <span>Match two dimensions and assign the intersecting result</span>
+          </div>
+          <button
+            aria-label="Expand cross table"
+            onClick={() => setDecisionTableExpanded((current) => !current)}
+          >{decisionTableExpanded ? '↙' : '⛶'}</button>
+        </div>
+
+        <div className="cross-axis-config">
+          <label>
+            <span>Row condition</span>
+            <select
+              value={table.rowVariable}
+              onChange={(event) => updateCrossAxis(node.id, 'rowVariable', event.target.value)}
+            >
+              {renderCrossVariableOptions(node.id)}
+            </select>
+          </label>
+          <label>
+            <span>Column condition</span>
+            <select
+              value={table.columnVariable}
+              onChange={(event) => updateCrossAxis(node.id, 'columnVariable', event.target.value)}
+            >
+              {renderCrossVariableOptions(node.id)}
+            </select>
+          </label>
+          <label>
+            <span>Assignment variable</span>
+            <input
+              value={table.outputVariable}
+              placeholder="Output variable"
+              onChange={(event) => updateCrossAxis(node.id, 'outputVariable', event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div
+          className="cross-matrix"
+          style={{ '--cross-columns': table.columns.length }}
+        >
+          <div className="cross-matrix-corner">
+            <span>{table.columnVariable.split(' · ').at(-1) || 'Column condition'} →</span>
+            <strong>↓ {table.rowVariable.split(' · ').at(-1) || 'Row condition'}</strong>
+          </div>
+          {table.columns.map((column, columnIndex) => (
+            <div className="cross-column-condition" key={column.id}>
+              <input
+                aria-label={`Column condition ${columnIndex + 1}`}
+                value={column.value}
+                onChange={(event) => updateCrossTable(node.id, (current) => ({
+                  ...current,
+                  columns: current.columns.map((item, index) => (
+                    index === columnIndex ? { ...item, value: event.target.value } : item
+                  )),
+                }))}
+              />
+              <button
+                disabled={table.columns.length === 1}
+                aria-label={`Remove column ${columnIndex + 1}`}
+                onClick={() => removeCrossColumn(node.id, columnIndex)}
+              >×</button>
+            </div>
+          ))}
+          <button
+            className="cross-add-column"
+            aria-label="Add column condition"
+            onClick={() => addCrossColumn(node.id)}
+          >＋</button>
+
+          {table.rows.map((row, rowIndex) => (
+            <div className="cross-matrix-row" key={row.id}>
+              <div className="cross-row-condition">
+                <span>{rowIndex + 1}</span>
+                <input
+                  aria-label={`Row condition ${rowIndex + 1}`}
+                  value={row.value}
+                  onChange={(event) => updateCrossTable(node.id, (current) => ({
+                    ...current,
+                    rows: current.rows.map((item) => (
+                      item.id === row.id ? { ...item, value: event.target.value } : item
+                    )),
+                  }))}
+                />
+              </div>
+              {table.columns.map((column, columnIndex) => (
+                <label className="cross-result-cell" key={`${row.id}-${column.id}`}>
+                  <small>{table.outputVariable || 'Result'} =</small>
+                  <input
+                    aria-label={`Result for ${row.value} and ${column.value}`}
+                    value={row.results[columnIndex] || ''}
+                    placeholder="Value"
+                    onChange={(event) => updateCrossTable(node.id, (current) => ({
+                      ...current,
+                      rows: current.rows.map((item) => (
+                        item.id === row.id
+                          ? {
+                            ...item,
+                            results: item.results.map((result, index) => (
+                              index === columnIndex ? event.target.value : result
+                            )),
+                          }
+                          : item
+                      )),
+                    }))}
+                  />
+                </label>
+              ))}
+              <button
+                className="cross-remove-row"
+                disabled={table.rows.length === 1}
+                aria-label={`Remove row ${rowIndex + 1}`}
+                onClick={() => removeCrossRow(node.id, row.id)}
+              >−</button>
+            </div>
+          ))}
+        </div>
+        <button className="decision-table-add-row" onClick={() => addCrossRow(node.id)}>＋ Add row condition</button>
+      </section>
+    )
+  }
+
   const renderCanvasNodeTitle = (node, selected) => (
     selected ? (
       <input
@@ -2450,10 +2727,13 @@ function DecisionEditorPage() {
               const source = nodes.find((node) => node.id === edge.from)
               const target = nodes.find((node) => node.id === edge.to)
               if (!source || !target) return null
-              const targetSize = nodeSize(target)
-              const labelX = (source.x + target.x + targetSize.width) / 2
-              const labelY = (source.y + target.y) / 2 + 12
-              const edgePath = connectionPath(source, target, edge)
+              const {
+                path: edgePath,
+                endX,
+                endY,
+                labelX,
+                labelY,
+              } = connectionGeometry(source, target, edge)
               const selected = selectedEdgeId === edge.id
               return (
                 <g
@@ -2467,10 +2747,10 @@ function DecisionEditorPage() {
                     event.stopPropagation()
                     selectEdge(edge.id)
                   }}
-                >
+                  >
                   <path className="edge-hit-area" d={edgePath} />
                   <path className="edge-line" d={edgePath} />
-                  <circle cx={target.x + targetSize.width / 2} cy={target.y} r="2.5" />
+                  <circle cx={endX} cy={endY} r="2.5" />
                   {edge.label && (
                     <g>
                       <rect className="edge-label-bg" x={labelX - 30} y={labelY - 12} width="60" height="21" rx="7" />
@@ -2655,6 +2935,12 @@ function DecisionEditorPage() {
                         <i />
                         <span><b>{decisionTables[node.id]?.rows.length || 1}</b> rules</span>
                       </div>
+                    ) : node.type === 'cross' ? (
+                      <div className="decision-table-node-preview cross-node-preview">
+                        <span><b>{crossTables[node.id]?.rows.length || 0}</b> × <b>{crossTables[node.id]?.columns.length || 0}</b> matrix</span>
+                        <i />
+                        <span>Output <b>{crossTables[node.id]?.outputVariable || 'cross_result'}</b></span>
+                      </div>
                     ) : (
                       <>
                         <span className="node-io-row"><b>Input</b><span>{(node.inputs || ['Not configured']).join(' · ')}</span></span>
@@ -2724,7 +3010,7 @@ function DecisionEditorPage() {
       </main>
 
       {panelMode && (
-        <aside className={`editor-right-drawer ${selectedNode?.type === 'decisionTable' ? 'decision-table-drawer' : ''} ${decisionTableExpanded && selectedNode?.type === 'decisionTable' ? 'decision-table-expanded' : ''}`}>
+        <aside className={`editor-right-drawer ${['decisionTable', 'cross', 'action'].includes(selectedNode?.type) ? 'decision-table-drawer' : ''} ${selectedNode?.type === 'cross' ? 'cross-drawer' : ''} ${selectedNode?.type === 'action' ? 'assignment-drawer' : ''} ${decisionTableExpanded && ['decisionTable', 'cross', 'action'].includes(selectedNode?.type) ? 'decision-table-expanded' : ''}`}>
           {panelMode === 'config' && selectedNode && (
             <>
               <div className="drawer-header">
@@ -2733,7 +3019,7 @@ function DecisionEditorPage() {
                 <span>ⓘ</span>
               </div>
               <div className="drawer-body">
-                {selectedNode.type !== 'decisionTable' && (
+                {!['decisionTable', 'cross', 'action'].includes(selectedNode.type) && (
                   <div className="node-summary-card">
                     <span className="canvas-node-icon" style={{ background: nodeTypes.find((item) => item.type === selectedNode.type)?.color || '#edf0f4' }}>
                       {selectedNode.type === 'start' ? '▶' : selectedNode.type === 'end' ? '■' : nodeTypes.find((item) => item.type === selectedNode.type)?.icon}
@@ -2746,6 +3032,8 @@ function DecisionEditorPage() {
                 )}
                 {selectedNode.type === 'decisionTable' ? (
                   renderDecisionTableConfig(selectedNode)
+                ) : selectedNode.type === 'cross' ? (
+                  renderCrossConfig(selectedNode)
                 ) : selectedNode.type === 'ifElse' ? (
                   <>
                     <section className="selector-config">
@@ -2885,52 +3173,79 @@ function DecisionEditorPage() {
                   </>
                 ) : selectedNode.type === 'action' ? (
                   <>
-                    <section className="action-assignment-section">
-                      <div className="action-section-title">
-                        <div><strong>Assignments</strong><span>Each row creates an output and assigns its value</span></div>
-                        <button onClick={() => addActionOperation(selectedNode.id)}>＋</button>
-                      </div>
-                      <div className="action-assignment-header"><span>Assignment variable</span><span /><span>Value / expression</span><span /></div>
-                      {(actionOperations[selectedNode.id] || []).map((operation) => (
-                        <div className="action-assignment-row" key={operation.id}>
-                          <div className="action-target-wrap">
-                            <button
-                              className={operation.target ? 'action-target-button selected' : 'action-target-button'}
-                              aria-label="Select assignment target"
-                              onClick={() => setActionTargetPicker({
-                                rowId: operation.id,
-                                category: operation.target.startsWith('Feature ·')
-                                  ? 'feature'
-                                  : operation.target.startsWith('Output ·') || !operation.target.includes(' · ')
-                                    ? 'output'
-                                    : 'local',
-                                query: '',
-                              })}
-                            >
-                              {operation.target
-                                ? <>
-                                  <i className={operation.target.startsWith('Feature ·') ? 'feature' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'output' : 'local'}>
-                                    {operation.target.startsWith('Feature ·') ? 'F' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'O' : 'L'}
-                                  </i>
-                                  <span>{operation.target}</span>
-                                </>
-                                : <span>Select variable</span>}
-                              <b>⌄</b>
-                            </button>
-                            {['result', 'reject_code', 'reject_reason'].includes(operation.target.split(' · ').at(-1)) && <span>Official</span>}
-                            {renderActionTargetPicker(selectedNode.id, operation)}
-                          </div>
-                          <strong className="action-equals">=</strong>
-                          {renderActionExpression(selectedNode.id, operation)}
-                          <button
-                            className="action-delete-assignment"
-                            disabled={(actionOperations[selectedNode.id] || []).length === 1}
-                            onClick={() => deleteActionOperation(selectedNode.id, operation.id)}
-                          >−</button>
+                    <section className="assignment-rule-config">
+                      <div className="decision-table-config-title">
+                        <div>
+                          <strong>Configure Rule</strong>
+                          <span>Copy the expression in column B into the variable in column A</span>
                         </div>
-                      ))}
+                        <button
+                          aria-label="Expand assignment table"
+                          onClick={() => setDecisionTableExpanded((current) => !current)}
+                        >{decisionTableExpanded ? '↙' : '⛶'}</button>
+                      </div>
+                      <div className="assignment-rule-grid">
+                        <div className="assignment-grid-corner" />
+                        <div className="assignment-grid-letter">A</div>
+                        <div className="assignment-grid-letter">B</div>
+                        <button
+                          className="assignment-add-row"
+                          aria-label="Add assignment row"
+                          onClick={() => addActionOperation(selectedNode.id)}
+                        >＋</button>
+
+                        <div className="assignment-grid-number">1</div>
+                        <div className="assignment-grid-heading variable">Variable Column</div>
+                        <div className="assignment-grid-heading expression">Assignment Expression</div>
+                        <div />
+
+                        {(actionOperations[selectedNode.id] || []).map((operation, rowIndex) => (
+                          <div className="assignment-grid-row" key={operation.id}>
+                            <div className="assignment-grid-number">{rowIndex + 2}</div>
+                            <div className="assignment-grid-target">
+                              <div className="action-target-wrap">
+                                <button
+                                  className={operation.target ? 'action-target-button selected' : 'action-target-button'}
+                                  aria-label={`Select assignment variable ${rowIndex + 1}`}
+                                  onClick={() => setActionTargetPicker({
+                                    rowId: operation.id,
+                                    category: operation.target.startsWith('Feature ·')
+                                      ? 'feature'
+                                      : operation.target.startsWith('Output ·') || !operation.target.includes(' · ')
+                                        ? 'output'
+                                        : 'local',
+                                    query: '',
+                                    newName: '',
+                                  })}
+                                >
+                                  {operation.target
+                                    ? <>
+                                      <i className={operation.target.startsWith('Feature ·') ? 'feature' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'output' : 'local'}>
+                                        {operation.target.startsWith('Feature ·') ? 'F' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'O' : 'L'}
+                                      </i>
+                                      <span>{operation.target}</span>
+                                    </>
+                                    : <span>Select or create variable</span>}
+                                  <b>⌄</b>
+                                </button>
+                                {['result', 'reject_code', 'reject_reason'].includes(operation.target.split(' · ').at(-1)) && <span>Official</span>}
+                                {renderActionTargetPicker(selectedNode.id, operation)}
+                              </div>
+                            </div>
+                            <div className="assignment-grid-expression">
+                              {renderActionExpression(selectedNode.id, operation)}
+                            </div>
+                            <button
+                              className="assignment-remove-row"
+                              aria-label={`Remove assignment row ${rowIndex + 1}`}
+                              disabled={(actionOperations[selectedNode.id] || []).length === 1}
+                              onClick={() => deleteActionOperation(selectedNode.id, operation.id)}
+                            >−</button>
+                          </div>
+                        ))}
+                      </div>
+                      <button className="decision-table-add-row" onClick={() => addActionOperation(selectedNode.id)}>＋ Add assignment</button>
                     </section>
-                    <p className="drawer-tip">Each row defaults to a direct assignment. Select a Feature, upstream Local, or Output on the left; use the plus button only when a calculation is needed.</p>
                   </>
                 ) : selectedNode.type === 'start' ? (
                   <>
