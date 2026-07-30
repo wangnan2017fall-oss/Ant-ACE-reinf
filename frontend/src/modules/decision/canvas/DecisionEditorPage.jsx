@@ -165,6 +165,20 @@ function connectionGeometry(source, target, edge = {}) {
   }
 }
 
+function outputPortPosition(node, sourcePort = null) {
+  const size = nodeSize(node)
+  const y = node.type === 'ifElse' && sourcePort
+    ? node.y + 50 + ((sourcePort.index + 0.5) / Math.max(1, sourcePort.count || 1)) * (size.height - 54)
+    : node.y + size.height / 2
+  return { x: node.x + size.width, y }
+}
+
+function draftConnectionPath(start, end) {
+  const direction = end.x >= start.x ? 1 : -1
+  const controlOffset = Math.min(190, Math.max(54, Math.abs(end.x - start.x) * 0.46))
+  return `M ${start.x} ${start.y} C ${start.x + direction * controlOffset} ${start.y}, ${end.x - direction * controlOffset} ${end.y}, ${end.x} ${end.y}`
+}
+
 function DecisionEditorPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -181,8 +195,11 @@ function DecisionEditorPage() {
   const marqueeStartRef = useRef(null)
   const clipboardRef = useRef([])
   const actionModuleDragRef = useRef(null)
+  const connectionDragRef = useRef(null)
+  const suppressConnectionClickRef = useRef(false)
   const [nodes, setNodes] = useState(initialNodes)
   const [edges, setEdges] = useState(initialEdges)
+  const [connectionDraft, setConnectionDraft] = useState(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState('')
   const [selectedNodeId, setSelectedNodeId] = useState('')
   const [selectedNodeIds, setSelectedNodeIds] = useState([])
@@ -477,6 +494,90 @@ function DecisionEditorPage() {
     setSelectedNodeIds([])
     setPanelMode('')
     setQuickAddNodeId('')
+  }
+
+  const canvasPointFromClient = (clientX, clientY) => {
+    const bounds = canvasRef.current?.getBoundingClientRect()
+    if (!bounds) return null
+    return {
+      x: (clientX - bounds.left - pan.x) / zoom,
+      y: (clientY - bounds.top - pan.y) / zoom,
+    }
+  }
+
+  const connectionTargetAt = (clientX, clientY, sourceId) => {
+    const port = document.elementFromPoint(clientX, clientY)?.closest?.('[data-node-input-port]')
+    const targetId = port?.dataset.nodeInputPort || ''
+    return targetId && targetId !== sourceId ? targetId : ''
+  }
+
+  const startConnectionDrag = (event, node, sourcePort = null) => {
+    if (event.button !== 0 || node.type === 'end') return
+    event.preventDefault()
+    event.stopPropagation()
+    suppressConnectionClickRef.current = false
+    connectionDragRef.current = {
+      sourceId: node.id,
+      sourcePort,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      start: outputPortPosition(node, sourcePort),
+      moved: false,
+    }
+    selectOnly(node.id)
+    setSelectedEdgeId('')
+  }
+
+  const moveConnectionDrag = (event) => {
+    const activeDrag = connectionDragRef.current
+    if (!activeDrag) return
+    if (!activeDrag.moved) {
+      activeDrag.moved = Math.hypot(
+        event.clientX - activeDrag.startClientX,
+        event.clientY - activeDrag.startClientY,
+      ) > 4
+    }
+    if (!activeDrag.moved) return
+    const current = canvasPointFromClient(event.clientX, event.clientY)
+    if (!current) return
+    setConnectionDraft({
+      sourceId: activeDrag.sourceId,
+      start: activeDrag.start,
+      current,
+      hoverTargetId: connectionTargetAt(event.clientX, event.clientY, activeDrag.sourceId),
+    })
+  }
+
+  const stopConnectionDrag = (event) => {
+    const activeDrag = connectionDragRef.current
+    if (!activeDrag) return
+    if (activeDrag.moved) {
+      suppressConnectionClickRef.current = true
+      const targetId = connectionTargetAt(event.clientX, event.clientY, activeDrag.sourceId)
+      if (targetId) {
+        const sourcePort = activeDrag.sourcePort
+        setEdges((current) => {
+          const duplicate = current.some((edge) => (
+            edge.from === activeDrag.sourceId
+            && edge.to === targetId
+            && (edge.sourcePortIndex ?? null) === (sourcePort?.index ?? null)
+          ))
+          if (duplicate) return current
+          return [...current, {
+            id: `edge-${activeDrag.sourceId}-${targetId}-${Date.now()}`,
+            from: activeDrag.sourceId,
+            to: targetId,
+            ...(sourcePort ? {
+              label: sourcePort.label,
+              sourcePortIndex: sourcePort.index,
+              sourcePortCount: sourcePort.count,
+            } : {}),
+          }]
+        })
+      }
+    }
+    connectionDragRef.current = null
+    setConnectionDraft(null)
   }
 
   const copySelectedNodes = () => {
@@ -2695,10 +2796,12 @@ function DecisionEditorPage() {
       onMouseMove={(event) => {
         movePaletteDrag(event)
         moveCanvasNodeDrag(event)
+        moveConnectionDrag(event)
       }}
       onMouseUp={(event) => {
         stopPaletteDrag(event)
         stopCanvasNodeDrag()
+        stopConnectionDrag(event)
       }}
     >
       <aside className="editor-left-panel">
@@ -2769,7 +2872,7 @@ function DecisionEditorPage() {
       )}
 
       <main
-        className={`editor-canvas ${panStartRef.current ? 'panning' : ''} ${panelMode ? 'has-drawer' : ''}`}
+        className={`editor-canvas ${panStartRef.current ? 'panning' : ''} ${panelMode ? 'has-drawer' : ''} ${connectionDraft ? 'connecting' : ''}`}
         ref={canvasRef}
         onDragOver={(event) => event.preventDefault()}
         onDrop={handleDrop}
@@ -2854,6 +2957,15 @@ function DecisionEditorPage() {
                 </g>
               )
             })}
+            {connectionDraft && (
+              <g className="draft-connection" aria-hidden="true">
+                <path
+                  className="edge-line"
+                  d={draftConnectionPath(connectionDraft.start, connectionDraft.current)}
+                />
+                <circle cx={connectionDraft.current.x} cy={connectionDraft.current.y} r="4" />
+              </g>
+            )}
           </svg>
 
           {nodes.map((node) => {
@@ -2873,9 +2985,19 @@ function DecisionEditorPage() {
                   setQuickAddNodeId('')
                 }}
                 onDoubleClick={() => openNodePanel(node.id)}
-                className={`canvas-node ${node.type} ${selected ? 'selected' : ''}`}
+                className={`canvas-node ${node.type} ${selected ? 'selected' : ''} ${connectionDraft?.hoverTargetId === node.id ? 'connection-target' : ''}`}
                 style={{ left: node.x, top: node.y }}
               >
+                {node.type !== 'start' && (
+                  <button
+                    type="button"
+                    className="node-input-port"
+                    data-node-input-port={node.id}
+                    aria-label={`Connect to ${node.label}`}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                )}
                 {node.type === 'start' || node.type === 'end' ? (
                   <>
                     {renderCanvasNodeTitle(node, selected)}
@@ -2917,9 +3039,17 @@ function DecisionEditorPage() {
                               <button
                                 className="branch-add-button"
                                 aria-label={`Add node to ${branchLabel} branch`}
-                                onMouseDown={(event) => event.stopPropagation()}
+                                onMouseDown={(event) => startConnectionDrag(event, node, {
+                                  label: branchLabel,
+                                  index,
+                                  count: portCount,
+                                })}
                                 onClick={(event) => {
                                   event.stopPropagation()
+                                  if (suppressConnectionClickRef.current) {
+                                    suppressConnectionClickRef.current = false
+                                    return
+                                  }
                                   selectOnly(node.id)
                                   setQuickAddNodeId((current) => current === quickAddKey ? '' : quickAddKey)
                                 }}
@@ -2959,9 +3089,17 @@ function DecisionEditorPage() {
                           <button
                             className="branch-add-button"
                             aria-label="Add node to ELSE branch"
-                            onMouseDown={(event) => event.stopPropagation()}
+                            onMouseDown={(event) => startConnectionDrag(event, node, {
+                              label: 'ELSE',
+                              index: conditionBranchOrder.length,
+                              count: conditionBranchOrder.length + 1,
+                            })}
                             onClick={(event) => {
                               event.stopPropagation()
+                              if (suppressConnectionClickRef.current) {
+                                suppressConnectionClickRef.current = false
+                                return
+                              }
                               const quickAddKey = `${node.id}:else`
                               selectOnly(node.id)
                               setQuickAddNodeId((current) => current === quickAddKey ? '' : quickAddKey)
@@ -3035,9 +3173,13 @@ function DecisionEditorPage() {
                   <button
                     className="node-add-button"
                     aria-label={`Add node after ${node.label}`}
-                    onMouseDown={(event) => event.stopPropagation()}
+                    onMouseDown={(event) => startConnectionDrag(event, node)}
                     onClick={(event) => {
                       event.stopPropagation()
+                      if (suppressConnectionClickRef.current) {
+                        suppressConnectionClickRef.current = false
+                        return
+                      }
                       selectOnly(node.id)
                       setQuickAddNodeId((current) => current === node.id ? '' : node.id)
                     }}
