@@ -2017,6 +2017,53 @@
   cursor: default;
 }
 
+.condition-row.full-expression-mode {
+  grid-template-columns: minmax(0, 1fr) 22px;
+}
+
+.condition-full-expression {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.condition-full-expression > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.condition-full-expression strong {
+  color: #4c5566;
+  font-size: 11px;
+}
+
+.condition-full-expression > div > button {
+  border: 0;
+  background: transparent;
+  color: #7443d6;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.condition-row .condition-full-expression > input {
+  height: 48px;
+  padding: 0 13px;
+  border: 2px solid #8763ee;
+  border-radius: 12px;
+  color: #404756;
+  font-size: 12px;
+}
+
+.condition-row .condition-full-expression > input::placeholder {
+  color: #9da6b8;
+}
+
+.condition-row.full-expression-mode > button:last-child {
+  grid-row: 1 / span 2;
+}
+
 .condition-variable {
   grid-column: 1;
 }

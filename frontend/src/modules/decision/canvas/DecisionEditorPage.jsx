@@ -1333,15 +1333,18 @@ function DecisionEditorPage() {
   }
 
   const getConditionOperators = (type) => {
-    if (type === 'number') return ['=', '!=', '>', '>=', '<', '<=']
-    if (type === 'boolean') return ['=', '!=']
-    if (type === 'time') return ['=', '!=', 'before', 'after', 'between']
-    if (type === 'array') return ['contains', 'not contains', 'intersects']
-    if (type === 'string') return ['=', '!=', 'contains', 'not contains', 'starts with', 'ends with', 'in', 'not in']
-    return ['=', '!=', '>', '>=', '<', '<=', 'contains', 'in']
+    let operators
+    if (type === 'number') operators = ['=', '!=', '>', '>=', '<', '<=']
+    else if (type === 'boolean') operators = ['=', '!=']
+    else if (type === 'time') operators = ['=', '!=', 'before', 'after', 'between']
+    else if (type === 'array') operators = ['contains', 'not contains', 'intersects']
+    else if (type === 'string') operators = ['=', '!=', 'contains', 'not contains', 'starts with', 'ends with', 'in', 'not in']
+    else operators = ['=', '!=', '>', '>=', '<', '<=', 'contains', 'in']
+    return [...operators, 'Expression']
   }
 
   const formatConditionRow = (row) => {
+    if (row?.operator === 'Expression') return row.fullExpression || 'Expression'
     if (!row?.variable) return 'Not configured'
     if (row.rightMode !== 'expression') {
       return `${row.variable.replace('Feature · ', '').replace('Custom · ', '')} ${row.operator} ${row.expression}`
@@ -1468,6 +1471,7 @@ function DecisionEditorPage() {
       {conditionRows[branch].map((row, rowIndex) => {
         const variableType = getConditionVariableType(row.variable, upstreamNodes)
         const operators = getConditionOperators(variableType)
+        const fullExpressionMode = row.operator === 'Expression'
         return (
         <div className="condition-entry" key={row.id}>
           {rowIndex > 0 && (
@@ -1480,55 +1484,73 @@ function DecisionEditorPage() {
               <span />
             </div>
           )}
-          <div className="condition-row">
-            <select
-              aria-label="Left variable"
-              className="condition-variable"
-              value={row.variable}
-              onChange={(event) => {
-                const nextVariable = event.target.value
-                const nextOperators = getConditionOperators(getConditionVariableType(nextVariable, upstreamNodes))
-                updateCondition(branch, row.id, 'variable', nextVariable)
-                if (!nextOperators.includes(row.operator)) updateCondition(branch, row.id, 'operator', nextOperators[0])
-              }}
-            >
-              <option value="">Select left variable</option>
-              <optgroup label="Feature">
-                {featureVariables.map((feature) => <option key={feature.name}>{`Feature · ${feature.name}`}</option>)}
-              </optgroup>
-              <optgroup label="Custom">
-                {customConditionVariables.map((variable) => <option key={variable.name}>{`Custom · ${variable.name}`}</option>)}
-              </optgroup>
-              {upstreamNodes.map((node) => (
-                <optgroup label={node.label} key={node.id}>
-                  {(node.outputs || []).map((output) => <option key={output}>{`${node.label} · ${output}`}</option>)}
-                </optgroup>
-              ))}
-            </select>
-            <div className="condition-comparison">
-              <select aria-label="Operator" value={row.operator || '='} onChange={(event) => updateCondition(branch, row.id, 'operator', event.target.value)}>
-                {operators.map((operator) => <option key={operator}>{operator}</option>)}
-              </select>
-              {row.rightMode === 'expression'
-                ? renderConditionExpression(branch, row, upstreamNodes)
-                : (
+          <div className={`condition-row ${fullExpressionMode ? 'full-expression-mode' : ''}`}>
+            {fullExpressionMode
+              ? (
+                <div className="condition-full-expression">
+                  <div>
+                    <strong>Expression</strong>
+                    <button onClick={() => updateCondition(branch, row.id, 'operator', '=')}>Use simple condition</button>
+                  </div>
                   <input
-                    aria-label="Right variable or value"
-                    value={row.expression}
-                    placeholder={`Enter ${variableType === 'unknown' ? 'value' : variableType} or select variable`}
-                    onChange={(event) => updateCondition(branch, row.id, 'expression', event.target.value)}
+                    autoFocus
+                    aria-label="Full condition expression"
+                    value={row.fullExpression || ''}
+                    placeholder="Expression"
+                    onChange={(event) => updateCondition(branch, row.id, 'fullExpression', event.target.value)}
                   />
-                )}
-              <button
-                title="Choose right value source"
-                onClick={() => setConditionValuePicker((current) => (
-                  current?.branch === branch && current?.rowId === row.id ? null : { branch, rowId: row.id }
-                ))}
-              >
-                ◇
-              </button>
-              {conditionValuePicker?.branch === branch && conditionValuePicker?.rowId === row.id && (
-                <div className="condition-reference-picker">
+                </div>
+              )
+              : (
+                <>
+                  <select
+                    aria-label="Left variable"
+                    className="condition-variable"
+                    value={row.variable}
+                    onChange={(event) => {
+                      const nextVariable = event.target.value
+                      const nextOperators = getConditionOperators(getConditionVariableType(nextVariable, upstreamNodes))
+                      updateCondition(branch, row.id, 'variable', nextVariable)
+                      if (!nextOperators.includes(row.operator)) updateCondition(branch, row.id, 'operator', nextOperators[0])
+                    }}
+                  >
+                    <option value="">Select left variable</option>
+                    <optgroup label="Feature">
+                      {featureVariables.map((feature) => <option key={feature.name}>{`Feature · ${feature.name}`}</option>)}
+                    </optgroup>
+                    <optgroup label="Custom">
+                      {customConditionVariables.map((variable) => <option key={variable.name}>{`Custom · ${variable.name}`}</option>)}
+                    </optgroup>
+                    {upstreamNodes.map((node) => (
+                      <optgroup label={node.label} key={node.id}>
+                        {(node.outputs || []).map((output) => <option key={output}>{`${node.label} · ${output}`}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <div className="condition-comparison">
+                    <select aria-label="Operator" value={row.operator || '='} onChange={(event) => updateCondition(branch, row.id, 'operator', event.target.value)}>
+                      {operators.map((operator) => <option key={operator}>{operator}</option>)}
+                    </select>
+                    {row.rightMode === 'expression'
+                      ? renderConditionExpression(branch, row, upstreamNodes)
+                      : (
+                        <input
+                          aria-label="Right variable or value"
+                          value={row.expression}
+                          placeholder={`Enter ${variableType === 'unknown' ? 'value' : variableType} or select variable`}
+                          onChange={(event) => updateCondition(branch, row.id, 'expression', event.target.value)}
+                        />
+                      )}
+                    <button
+                      title="Choose right value source"
+                      onClick={() => setConditionValuePicker((current) => (
+                        current?.branch === branch && current?.rowId === row.id ? null : { branch, rowId: row.id }
+                      ))}
+                    >
+                      ◇
+                    </button>
+                    {conditionValuePicker?.branch === branch && conditionValuePicker?.rowId === row.id && (
+                      <div className="condition-reference-picker">
                   <strong>Right value source</strong>
                   <div className="condition-source-modes">
                     <button
@@ -1588,9 +1610,11 @@ function DecisionEditorPage() {
                       ))}
                     </div>
                   ))}
-                </div>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
-            </div>
             <button
               aria-label={`Delete ${branch} condition ${rowIndex + 1}`}
               disabled={conditionRows[branch].length === 1}
