@@ -951,6 +951,13 @@ function DecisionEditorPage() {
     setActionTargetPicker(null)
   }
 
+  const updateActionTargetText = (nodeId, rowId, target) => {
+    const rows = (actionOperations[nodeId] || []).map((row) => (
+      row.id === rowId ? { ...row, target } : row
+    ))
+    commitActionRows(nodeId, rows)
+  }
+
   const updateActionDataType = (nodeId, rowId, dataType) => {
     setActionOperations((current) => ({
       ...current,
@@ -2006,6 +2013,37 @@ function DecisionEditorPage() {
       )
     }
     const sourceType = operand?.sourceType || (operand?.value?.startsWith('Feature ·') ? 'feature' : operand?.value?.startsWith('Output ·') ? 'output' : 'local')
+    if (!operand) {
+      return (
+        <span
+          className="action-expression-empty"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault()
+            if (actionModuleDragRef.current) {
+              setActionOperandAtPath(nodeId, operation.id, path, actionModuleDragRef.current)
+              actionModuleDragRef.current = null
+            }
+          }}
+        >
+          <input
+            aria-label={`${operation.target || 'Output'} constant value`}
+            placeholder="Enter constant"
+            onChange={(event) => {
+              const value = event.target.value
+              const valueType = value !== '' && !Number.isNaN(Number(value)) ? 'Number' : 'String'
+              setActionOperandAtPath(nodeId, operation.id, path, {
+                kind: 'literal',
+                value,
+                valueType,
+              }, false)
+            }}
+          />
+          <button aria-label="Select variable or function" onClick={() => openActionOperandPicker(operation, path)}>⌄</button>
+          {renderActionOperandPicker(nodeId, operation, path)}
+        </span>
+      )
+    }
     return (
       <span
         className="action-expression-variable"
@@ -3225,30 +3263,37 @@ function DecisionEditorPage() {
                             <div className="assignment-grid-number">{rowIndex + 2}</div>
                             <div className="assignment-grid-target">
                               <div className="action-target-wrap">
-                                <button
-                                  className={operation.target ? 'action-target-button selected' : 'action-target-button'}
-                                  aria-label={`Select assignment variable ${rowIndex + 1}`}
-                                  onClick={() => setActionTargetPicker({
-                                    rowId: operation.id,
-                                    category: operation.target.startsWith('Feature ·')
-                                      ? 'feature'
-                                      : operation.target.startsWith('Output ·') || !operation.target.includes(' · ')
-                                        ? 'output'
-                                        : 'local',
-                                    query: '',
-                                    newName: '',
-                                  })}
-                                >
-                                  {operation.target
-                                    ? <>
-                                      <i className={operation.target.startsWith('Feature ·') ? 'feature' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'output' : 'local'}>
-                                        {operation.target.startsWith('Feature ·') ? 'F' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'O' : 'L'}
-                                      </i>
-                                      <span>{operation.target}</span>
-                                    </>
-                                    : <span>Select or create variable</span>}
-                                  <b>⌄</b>
-                                </button>
+                                <div className={operation.target ? 'assignment-target-combobox selected' : 'assignment-target-combobox'}>
+                                  {operation.target && (
+                                    <i className={operation.target.startsWith('Feature ·') ? 'feature' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'output' : 'local'}>
+                                      {operation.target.startsWith('Feature ·') ? 'F' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'O' : 'L'}
+                                    </i>
+                                  )}
+                                  <input
+                                    aria-label={`Enter or select assignment variable ${rowIndex + 1}`}
+                                    value={operation.target.startsWith('Output · ')
+                                      ? operation.target.slice('Output · '.length)
+                                      : operation.target}
+                                    placeholder="Select or enter variable"
+                                    onChange={(event) => updateActionTargetText(selectedNode.id, operation.id, event.target.value)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter') event.currentTarget.blur()
+                                    }}
+                                  />
+                                  <button
+                                    aria-label={`Select assignment variable ${rowIndex + 1}`}
+                                    onClick={() => setActionTargetPicker({
+                                      rowId: operation.id,
+                                      category: operation.target.startsWith('Feature ·')
+                                        ? 'feature'
+                                        : operation.target.startsWith('Output ·') || !operation.target.includes(' · ')
+                                          ? 'output'
+                                          : 'local',
+                                      query: '',
+                                      newName: '',
+                                    })}
+                                  >⌄</button>
+                                </div>
                                 {['result', 'reject_code', 'reject_reason'].includes(operation.target.split(' · ').at(-1)) && <span>Official</span>}
                                 {renderActionTargetPicker(selectedNode.id, operation)}
                               </div>

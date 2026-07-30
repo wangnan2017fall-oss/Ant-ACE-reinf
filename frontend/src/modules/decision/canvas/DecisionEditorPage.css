@@ -2635,6 +2635,7 @@
 }
 
 .action-expression-variable,
+.action-expression-empty,
 .action-expression-literal,
 .action-add-operator,
 .action-function-argument {
@@ -2642,6 +2643,44 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
+}
+
+.action-expression-empty {
+  min-width: 150px;
+  flex: 1;
+  overflow: visible;
+  border: 1px dashed #cfd5dc;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.action-expression-empty > input {
+  width: 100%;
+  min-width: 0;
+  height: 27px;
+  padding: 0 7px;
+  border: 0;
+  background: transparent;
+  color: #414855;
+  font: inherit;
+  font-size: 9px;
+  outline: 0;
+}
+
+.action-expression-empty > button {
+  width: 25px;
+  height: 27px;
+  flex: 0 0 25px;
+  border: 0;
+  border-left: 1px solid #e5e8ec;
+  background: transparent;
+  color: #8f97a4;
+  cursor: pointer;
+}
+
+.action-expression-empty:focus-within {
+  border-color: #8a5bd4;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.08);
 }
 
 .action-expression-variable > button {
@@ -3617,6 +3656,77 @@
 .action-target-button > b {
   color: #9aa1ac;
   font-size: 9px;
+}
+
+.assignment-target-combobox {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 4px 0 7px;
+  border: 1px dashed #d8dce3;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.assignment-target-combobox.selected {
+  border-style: solid;
+}
+
+.action-target-wrap .assignment-target-combobox > input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #414855;
+  font-size: 10px;
+  outline: 0;
+}
+
+.assignment-target-combobox > i {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  place-items: center;
+  border-radius: 5px;
+  background: #21b58d;
+  color: #fff;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.assignment-target-combobox > i.local {
+  background: #3ba4e3;
+}
+
+.assignment-target-combobox > i.output {
+  background: #f39a42;
+}
+
+.assignment-target-combobox > button {
+  display: grid;
+  width: 25px;
+  height: 30px;
+  flex: 0 0 25px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #8f97a4;
+  cursor: pointer;
+}
+
+.assignment-target-combobox > button:hover {
+  background: #f2edff;
+  color: #7040d8;
 }
 
 .action-target-value-picker {
