@@ -3410,13 +3410,22 @@
 }
 
 .block-condition-row {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) 76px minmax(0, 0.9fr) 18px;
+  grid-template-columns: minmax(0, 1.08fr) 68px minmax(0, 0.82fr) 27px 18px;
   gap: 5px;
 }
 
 .block-condition-row:has(> select[aria-label="Condition logic"]) {
-  grid-template-columns: 45px minmax(0, 1.1fr) 76px minmax(0, 0.9fr) 18px;
+  grid-template-columns: 43px minmax(0, 1fr) 68px minmax(0, 0.82fr) 27px 18px;
+}
+
+.block-condition-row.expression-mode {
+  grid-template-columns: minmax(0, 1fr) 18px;
+}
+
+.block-condition-row.expression-mode:has(> select[aria-label="Condition logic"]) {
+  grid-template-columns: 43px minmax(0, 1fr) 18px;
 }
 
 .block-condition-row select,
@@ -3438,6 +3447,61 @@
 .block-assignment-row input:focus {
   border-color: #bd6f7b;
   box-shadow: 0 0 0 2px rgba(189, 74, 91, 0.08);
+}
+
+.block-condition-row > .block-condition-source {
+  display: grid;
+  width: 27px;
+  height: 29px;
+  place-items: center;
+  border: 1px solid #dfe2e7;
+  border-radius: 6px;
+  background: #fff;
+  color: #8058c5;
+}
+
+.block-condition-row > .block-condition-remove {
+  width: 18px;
+  height: 29px;
+}
+
+.block-full-expression {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.block-full-expression > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.block-full-expression strong {
+  color: #704b78;
+  font-size: 9px;
+}
+
+.block-full-expression > div > button {
+  border: 0;
+  background: transparent;
+  color: #9d5662;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.block-condition-row .block-full-expression > input {
+  height: 42px;
+  padding: 0 11px;
+  border: 2px solid #8763ee;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+.block-condition-reference-picker {
+  top: 34px;
+  right: 18px;
 }
 
 .block-add-condition {

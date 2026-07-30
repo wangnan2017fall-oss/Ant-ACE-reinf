@@ -1780,6 +1780,7 @@ function DecisionEditorPage() {
   }
 
   const formatBlockCondition = (condition) => {
+    if (condition?.operator === 'Expression') return condition.fullExpression || 'Expression'
     if (!condition?.variable) return 'Configure condition'
     if (condition.operator !== 'Expression') {
       return `${condition.variable.replace('Feature · ', '')} ${condition.operator} ${condition.expression}`
@@ -3160,62 +3161,142 @@ function DecisionEditorPage() {
                               <strong>IF</strong>
                               <button className="block-add-condition" onClick={() => addBlockCondition(selectedNode.id, rule.id)}>＋ Condition</button>
                             </div>
-                            {rule.conditions.map((condition, conditionIndex) => (
-                              <div className={`block-condition-row ${condition.operator === 'Expression' ? 'expression-mode' : ''}`} key={condition.id}>
-                                {conditionIndex > 0 && (
-                                  <select
-                                    aria-label="Condition logic"
-                                    value={condition.logic}
-                                    onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'logic', event.target.value)}
-                                  >
-                                    <option>AND</option>
-                                    <option>OR</option>
-                                  </select>
-                                )}
-                                <select
-                                  aria-label="Block condition variable"
-                                  value={condition.variable}
-                                  onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'variable', event.target.value)}
-                                >
-                                  <option value="">Select variable</option>
-                                  <optgroup label="Feature">
-                                    {featureVariables.map((variable) => <option key={variable.name} value={`Feature · ${variable.name}`}>{variable.name}</option>)}
-                                  </optgroup>
-                                  <optgroup label="Upstream">
-                                    {getUpstreamNodes(selectedNode.id).flatMap((node) => (node.outputs || []).map((output) => (
-                                      <option key={`${node.id}-${output}`} value={`${node.label} · ${output}`}>{node.label} · {output}</option>
-                                    )))}
-                                  </optgroup>
-                                </select>
-                                <select
-                                  aria-label="Block condition operator"
-                                  value={condition.operator}
-                                  onChange={(event) => {
-                                    updateBlockCondition(selectedNode.id, rule.id, condition.id, 'operator', event.target.value)
-                                    if (event.target.value === 'Expression' && !condition.expressionParts) {
-                                      updateBlockExpressionParts(selectedNode.id, rule.id, condition.id, () => [])
-                                    }
-                                  }}
-                                >
-                                  {['=', '!=', '>', '>=', '<', '<=', 'in', 'not in', 'Expression'].map((operator) => <option key={operator}>{operator}</option>)}
-                                </select>
-                                {condition.operator === 'Expression'
-                                  ? renderBlockExpression(selectedNode.id, rule, condition)
-                                  : (
-                                    <input
-                                      aria-label="Block condition value"
-                                      value={condition.expression}
-                                      placeholder="Value"
-                                      onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'expression', event.target.value)}
-                                    />
+                            {rule.conditions.map((condition, conditionIndex) => {
+                              const upstreamNodes = getUpstreamNodes(selectedNode.id)
+                              const variableType = getConditionVariableType(condition.variable, upstreamNodes)
+                              const operators = getConditionOperators(variableType)
+                              const fullExpressionMode = condition.operator === 'Expression'
+                              const blockPickerOpen = conditionValuePicker?.mode === 'block'
+                                && conditionValuePicker?.nodeId === selectedNode.id
+                                && conditionValuePicker?.ruleId === rule.id
+                                && conditionValuePicker?.conditionId === condition.id
+                              return (
+                                <div className={`block-condition-row ${fullExpressionMode ? 'expression-mode' : ''}`} key={condition.id}>
+                                  {conditionIndex > 0 && (
+                                    <select
+                                      aria-label="Condition logic"
+                                      value={condition.logic}
+                                      onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'logic', event.target.value)}
+                                    >
+                                      <option>AND</option>
+                                      <option>OR</option>
+                                    </select>
                                   )}
-                                <button
-                                  aria-label="Remove block condition"
-                                  disabled={rule.conditions.length === 1}
-                                  onClick={() => deleteBlockCondition(selectedNode.id, rule.id, condition.id)}
-                                >−</button>
-                              </div>
-                            ))}
+                                  {fullExpressionMode
+                                    ? (
+                                      <div className="block-full-expression">
+                                        <div>
+                                          <strong>Expression</strong>
+                                          <button onClick={() => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'operator', '=')}>Use simple condition</button>
+                                        </div>
+                                        <input
+                                          autoFocus
+                                          aria-label="Full block condition expression"
+                                          value={condition.fullExpression || ''}
+                                          placeholder="Expression"
+                                          onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'fullExpression', event.target.value)}
+                                        />
+                                      </div>
+                                    )
+                                    : (
+                                      <>
+                                        <select
+                                          aria-label="Block condition variable"
+                                          value={condition.variable}
+                                          onChange={(event) => {
+                                            const nextVariable = event.target.value
+                                            const nextOperators = getConditionOperators(getConditionVariableType(nextVariable, upstreamNodes))
+                                            updateBlockCondition(selectedNode.id, rule.id, condition.id, 'variable', nextVariable)
+                                            if (!nextOperators.includes(condition.operator)) {
+                                              updateBlockCondition(selectedNode.id, rule.id, condition.id, 'operator', nextOperators[0])
+                                            }
+                                          }}
+                                        >
+                                          <option value="">Select variable</option>
+                                          <optgroup label="Feature">
+                                            {featureVariables.map((variable) => <option key={variable.name} value={`Feature · ${variable.name}`}>{variable.name}</option>)}
+                                          </optgroup>
+                                          <optgroup label="Custom">
+                                            {customConditionVariables.map((variable) => <option key={variable.name} value={`Custom · ${variable.name}`}>{variable.name}</option>)}
+                                          </optgroup>
+                                          {upstreamNodes.map((node) => (
+                                            <optgroup label={node.label} key={node.id}>
+                                              {(node.outputs || []).map((output) => (
+                                                <option key={`${node.id}-${output}`} value={`${node.label} · ${output}`}>{node.label} · {output}</option>
+                                              ))}
+                                            </optgroup>
+                                          ))}
+                                        </select>
+                                        <select
+                                          aria-label="Block condition operator"
+                                          value={condition.operator}
+                                          onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'operator', event.target.value)}
+                                        >
+                                          {operators.map((operator) => <option key={operator}>{operator}</option>)}
+                                        </select>
+                                        <input
+                                          aria-label="Block condition value"
+                                          value={condition.expression}
+                                          placeholder={`Enter ${variableType === 'unknown' ? 'value' : variableType}`}
+                                          onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'expression', event.target.value)}
+                                        />
+                                        <button
+                                          className="block-condition-source"
+                                          aria-label="Choose block right value source"
+                                          onClick={() => setConditionValuePicker(blockPickerOpen
+                                            ? null
+                                            : { mode: 'block', nodeId: selectedNode.id, ruleId: rule.id, conditionId: condition.id })}
+                                        >◇</button>
+                                        {blockPickerOpen && (
+                                          <div className="condition-reference-picker block-condition-reference-picker">
+                                            <strong>Right value source</strong>
+                                            <small>Feature</small>
+                                            {featureVariables.map((feature) => (
+                                              <button
+                                                key={feature.name}
+                                                onClick={() => {
+                                                  updateBlockCondition(selectedNode.id, rule.id, condition.id, 'expression', `Feature · ${feature.name}`)
+                                                  setConditionValuePicker(null)
+                                                }}
+                                              ><span>{feature.name}</span><code>{feature.type}</code></button>
+                                            ))}
+                                            <small>Custom</small>
+                                            {customConditionVariables.map((variable) => (
+                                              <button
+                                                key={variable.name}
+                                                onClick={() => {
+                                                  updateBlockCondition(selectedNode.id, rule.id, condition.id, 'expression', `Custom · ${variable.name}`)
+                                                  setConditionValuePicker(null)
+                                                }}
+                                              ><span>{variable.name}</span><code>{variable.type}</code></button>
+                                            ))}
+                                            {upstreamNodes.map((node) => (
+                                              <div key={node.id}>
+                                                <small>{node.label}</small>
+                                                {(node.outputs || []).map((output) => (
+                                                  <button
+                                                    key={output}
+                                                    onClick={() => {
+                                                      updateBlockCondition(selectedNode.id, rule.id, condition.id, 'expression', `${node.label} · ${output}`)
+                                                      setConditionValuePicker(null)
+                                                    }}
+                                                  ><span>{output}</span><code>auto</code></button>
+                                                ))}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  <button
+                                    className="block-condition-remove"
+                                    aria-label="Remove block condition"
+                                    disabled={rule.conditions.length === 1}
+                                    onClick={() => deleteBlockCondition(selectedNode.id, rule.id, condition.id)}
+                                  >−</button>
+                                </div>
+                              )
+                            })}
                           </div>
                           <div className="block-assignments">
                             <div className="block-assignment-title">
