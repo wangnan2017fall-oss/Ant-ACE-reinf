@@ -413,6 +413,7 @@ function DecisionEditorPage() {
           assignments: [{
             id: `block-assignment-${Date.now()}`,
             target: 'reject_reason',
+            dataType: 'String',
             value: 'AGE_REJECT',
           }],
         }],
@@ -930,6 +931,7 @@ function DecisionEditorPage() {
       assignments: [{
         id: `block-assignment-${stamp}`,
         target: 'reject_reason',
+        dataType: 'String',
         value: '',
       }],
     }])
@@ -993,6 +995,7 @@ function DecisionEditorPage() {
         assignments: [...rule.assignments, {
           id: `block-assignment-${Date.now()}`,
           target: '',
+          dataType: 'String',
           value: '',
         }],
       }
@@ -3454,6 +3457,16 @@ function DecisionEditorPage() {
                                   placeholder="Variable"
                                   onChange={(event) => updateBlockAssignment(selectedNode.id, rule.id, assignment.id, 'target', event.target.value)}
                                 />
+                                <select
+                                  aria-label={`${assignment.target || 'New variable'} data type`}
+                                  value={assignment.dataType || 'String'}
+                                  disabled={assignment.target === 'reject_reason'}
+                                  onChange={(event) => updateBlockAssignment(selectedNode.id, rule.id, assignment.id, 'dataType', event.target.value)}
+                                >
+                                  {['String', 'Integer', 'Number', 'Boolean', 'Time', 'Object', 'Array'].map((type) => (
+                                    <option key={type}>{type}</option>
+                                  ))}
+                                </select>
                                 <strong>=</strong>
                                 <input
                                   aria-label={`${assignment.target || 'Block'} value`}
