@@ -1127,8 +1127,8 @@
 
 .assignment-rule-grid {
   display: grid;
-  min-width: 520px;
-  grid-template-columns: 34px minmax(160px, 0.8fr) minmax(260px, 1.35fr) 28px;
+  min-width: 650px;
+  grid-template-columns: 34px minmax(145px, 0.72fr) 92px 34px minmax(245px, 1.28fr) 28px;
   overflow: visible;
   border: 1px solid #e8eaf0;
   border-radius: 12px;
@@ -1148,6 +1148,20 @@
 
 .assignment-grid-letter {
   border-left: 1px solid #edf0f3;
+}
+
+.assignment-grid-a-letter {
+  grid-column: span 2;
+}
+
+.assignment-grid-equals-heading {
+  background: #fff;
+  color: #7f8795;
+  font-size: 13px;
+}
+
+.assignment-grid-b-letter {
+  background: #fff;
 }
 
 .assignment-add-row {
@@ -1176,6 +1190,19 @@
   background: #e9f5fc;
 }
 
+.assignment-grid-heading.data-type {
+  border-left-color: #d9eaf4;
+  background: #e9f5fc;
+}
+
+.assignment-grid-heading.equals {
+  justify-content: center;
+  padding: 0;
+  background: #fff;
+  color: #747d8c;
+  font-size: 15px;
+}
+
 .assignment-grid-heading.expression {
   background: #ddf7e6;
 }
@@ -1183,12 +1210,14 @@
 .assignment-grid-row {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: 34px minmax(160px, 0.8fr) minmax(260px, 1.35fr) 28px;
+  grid-template-columns: 34px minmax(145px, 0.72fr) 92px 34px minmax(245px, 1.28fr) 28px;
   min-height: 76px;
   border-top: 1px solid #e8eaf0;
 }
 
 .assignment-grid-target,
+.assignment-grid-data-type,
+.assignment-grid-equals,
 .assignment-grid-expression {
   display: flex;
   min-width: 0;
@@ -1196,6 +1225,37 @@
   padding: 9px;
   border-left: 1px solid #e8eaf0;
   background: #fff;
+}
+
+.assignment-grid-data-type {
+  padding: 9px 6px;
+}
+
+.assignment-grid-data-type select {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 0 24px 0 8px;
+  border: 1px solid #dfe3e8;
+  border-radius: 7px;
+  background: #fff;
+  color: #535c6b;
+  font: inherit;
+  font-size: 10px;
+  outline: 0;
+}
+
+.assignment-grid-data-type select:focus {
+  border-color: #8a5bd4;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.08);
+}
+
+.assignment-grid-equals {
+  justify-content: center;
+  padding: 0;
+  color: #747d8c;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .assignment-grid-target .action-target-wrap,

@@ -214,6 +214,7 @@ function DecisionEditorPage() {
       {
         id: 'op-limit',
         target: 'credit_limit',
+        dataType: 'Number',
         expression: {
           type: 'formula',
           parts: [
@@ -226,11 +227,13 @@ function DecisionEditorPage() {
       {
         id: 'op-rate',
         target: 'interest_rate',
+        dataType: 'Number',
         expression: { type: 'formula', parts: [{ kind: 'literal', value: '0.12', valueType: 'Number' }] },
       },
       {
         id: 'op-term',
         target: 'loan_term',
+        dataType: 'Integer',
         expression: { type: 'formula', parts: [{ kind: 'literal', value: '12', valueType: 'Number' }] },
       },
     ],
@@ -372,6 +375,7 @@ function DecisionEditorPage() {
         [node.id]: [{
           id: `operation-${Date.now()}`,
           target: '',
+          dataType: 'String',
           expression: { type: 'formula', parts: [null] },
         }],
       }))
@@ -917,7 +921,12 @@ function DecisionEditorPage() {
   const addActionOperation = (nodeId) => {
     const rows = [
       ...(actionOperations[nodeId] || []),
-      { id: `operation-${Date.now()}`, target: '', expression: { type: 'formula', parts: [null] } },
+      {
+        id: `operation-${Date.now()}`,
+        target: '',
+        dataType: 'String',
+        expression: { type: 'formula', parts: [null] },
+      },
     ]
     setActionOperations((current) => ({ ...current, [nodeId]: rows }))
   }
@@ -940,6 +949,15 @@ function DecisionEditorPage() {
     const rows = (actionOperations[nodeId] || []).map((row) => row.id === rowId ? { ...row, target } : row)
     commitActionRows(nodeId, rows)
     setActionTargetPicker(null)
+  }
+
+  const updateActionDataType = (nodeId, rowId, dataType) => {
+    setActionOperations((current) => ({
+      ...current,
+      [nodeId]: (current[nodeId] || []).map((row) => (
+        row.id === rowId ? { ...row, dataType } : row
+      )),
+    }))
   }
 
   const updateActionExpression = (nodeId, rowId, expression) => {
@@ -3186,8 +3204,9 @@ function DecisionEditorPage() {
                       </div>
                       <div className="assignment-rule-grid">
                         <div className="assignment-grid-corner" />
-                        <div className="assignment-grid-letter">A</div>
-                        <div className="assignment-grid-letter">B</div>
+                        <div className="assignment-grid-letter assignment-grid-a-letter">A</div>
+                        <div className="assignment-grid-letter assignment-grid-equals-heading">=</div>
+                        <div className="assignment-grid-letter assignment-grid-b-letter">B</div>
                         <button
                           className="assignment-add-row"
                           aria-label="Add assignment row"
@@ -3195,7 +3214,9 @@ function DecisionEditorPage() {
                         >＋</button>
 
                         <div className="assignment-grid-number">1</div>
-                        <div className="assignment-grid-heading variable">Variable Column</div>
+                        <div className="assignment-grid-heading variable">Variable</div>
+                        <div className="assignment-grid-heading data-type">Data Type</div>
+                        <div className="assignment-grid-heading equals">=</div>
                         <div className="assignment-grid-heading expression">Assignment Expression</div>
                         <div />
 
@@ -3232,6 +3253,18 @@ function DecisionEditorPage() {
                                 {renderActionTargetPicker(selectedNode.id, operation)}
                               </div>
                             </div>
+                            <div className="assignment-grid-data-type">
+                              <select
+                                aria-label={`Assignment data type ${rowIndex + 1}`}
+                                value={operation.dataType || 'String'}
+                                onChange={(event) => updateActionDataType(selectedNode.id, operation.id, event.target.value)}
+                              >
+                                {['String', 'Integer', 'Number', 'Boolean', 'Time', 'Object', 'Array', 'File'].map((dataType) => (
+                                  <option key={dataType} value={dataType}>{dataType}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="assignment-grid-equals" aria-label="Assignment equals">=</div>
                             <div className="assignment-grid-expression">
                               {renderActionExpression(selectedNode.id, operation)}
                             </div>
