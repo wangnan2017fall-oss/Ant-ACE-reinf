@@ -22,6 +22,18 @@ const decisions = [
     description: 'Validate customer eligibility and base risk rules',
     versions: ['V2.1.0', 'V2.0.3', 'V1.9.8'],
     nodes: ['Start', 'Eligibility Rule', 'Risk Score', 'End'],
+    inputs: [
+      { name: 'user_id', type: 'String' },
+      { name: 'shop_id', type: 'String' },
+      { name: 'age', type: 'Number' },
+      { name: 'nationality', type: 'String' },
+      { name: 'credit_report_score', type: 'Number' },
+      { name: 'monthly_income', type: 'Number' },
+    ],
+    outputs: [
+      { name: 'eligible', type: 'Boolean' },
+      { name: 'risk_score', type: 'Number' },
+    ],
   },
   {
     id: 'limit-pricing',
@@ -29,6 +41,18 @@ const decisions = [
     description: 'Calculate credit limit, rate and repayment term',
     versions: ['V1.4.2', 'V1.4.1', 'V1.3.6'],
     nodes: ['Start', 'Limit Table', 'Pricing Rule', 'End'],
+    inputs: [
+      { name: 'user_id', type: 'String' },
+      { name: 'eligible', type: 'Boolean' },
+      { name: 'monthly_income', type: 'Number' },
+      { name: 'customer_segment', type: 'String' },
+      { name: 'risk_score', type: 'Number' },
+    ],
+    outputs: [
+      { name: 'credit_limit', type: 'Number' },
+      { name: 'interest_rate', type: 'Number' },
+      { name: 'loan_term', type: 'Integer' },
+    ],
   },
   {
     id: 'anti-fraud',
@@ -36,6 +60,15 @@ const decisions = [
     description: 'Fraud screening before final policy response',
     versions: ['V0.9.0', 'V0.8.4', 'V0.8.1'],
     nodes: ['Start', 'Fraud Score', 'If-Else Rule', 'End'],
+    inputs: [
+      { name: 'user_id', type: 'String' },
+      { name: 'shop_id', type: 'String' },
+      { name: 'shop_risk_level', type: 'String' },
+      { name: 'device_risk_score', type: 'Number' },
+    ],
+    outputs: [
+      { name: 'fraud_result', type: 'String' },
+    ],
   },
 ]
 
@@ -61,22 +94,21 @@ const decisionNodeDetails = {
 }
 
 const parameters = {
+  customer: [
+    { name: 'user_id', type: 'string', source: 'Policy request', usedIn: 'User and Credit Report features' },
+    { name: 'shop_id', type: 'string', source: 'Policy request', usedIn: 'Shop features' },
+  ],
   feature: [
     { name: 'age', type: 'number', component: 'User', key: 'user_id', usedIn: 'Eligibility Rule' },
     { name: 'monthly_income', type: 'number', component: 'User', key: 'user_id', usedIn: 'Risk Score, Limit Table' },
     { name: 'credit_report_score', type: 'number', component: 'Credit Report', key: 'user_id', usedIn: 'Risk Score' },
     { name: 'shop_risk_level', type: 'string', component: 'Shop', key: 'shop_id', usedIn: 'Fraud Score' },
   ],
-  local: [
-    { name: 'customer_segment', type: 'string', source: 'Eligibility Rule.segment', usedIn: 'Limit Table' },
-    { name: 'risk_score', type: 'number', source: 'Risk Score.score', usedIn: 'Pricing Rule' },
-    { name: 'base_limit', type: 'number', source: 'Limit Table.limit', usedIn: 'Pricing Rule' },
-  ],
   output: [
-    { name: 'approved', type: 'boolean', source: 'Eligibility Rule.approved' },
-    { name: 'credit_limit', type: 'number', source: 'Pricing Rule.final_limit' },
-    { name: 'interest_rate', type: 'number', source: 'Pricing Rule.rate' },
-    { name: 'loan_term', type: 'number', source: 'Pricing Rule.term' },
+    { name: 'approved', type: 'boolean', source: 'Eligibility Rule.approved', returnedBy: 'Policy End' },
+    { name: 'credit_limit', type: 'number', source: 'Pricing Rule.final_limit', returnedBy: 'Policy End' },
+    { name: 'interest_rate', type: 'number', source: 'Pricing Rule.rate', returnedBy: 'Policy End' },
+    { name: 'loan_term', type: 'number', source: 'Pricing Rule.term', returnedBy: 'Policy End' },
   ],
 }
 
@@ -198,7 +230,7 @@ function PolicyDetailPage() {
   const [inspectedDecisionNode, setInspectedDecisionNode] = useState('')
   const [recordsView, setRecordsView] = useState('records')
   const [diffVersion, setDiffVersion] = useState('V1.0.4')
-  const [parameterType, setParameterType] = useState('feature')
+  const [parameterType, setParameterType] = useState('customer')
   const [parameterSearch, setParameterSearch] = useState('')
   const [dateRange, setDateRange] = useState('Today')
   const requestedVersion = searchParams.get('version') || initialVersions[0].id
@@ -406,9 +438,25 @@ function PolicyDetailPage() {
                 <p>{selectedDecision.description}</p>
                 <dl>
                   <div><dt>Decision Version</dt><dd>{activeDecisionReferences[selectedDecision.id]}</dd></div>
-                  <div><dt>Policy Version</dt><dd>{activeVersion}</dd></div>
-                  <div><dt>Nodes</dt><dd>{selectedDecision.nodes.length}</dd></div>
                 </dl>
+                <div className="inspector-parameters">
+                  <section>
+                    <strong>Inputs <span>{selectedDecision.inputs.length}</span></strong>
+                    <div>
+                      {selectedDecision.inputs.map((parameter) => (
+                        <code key={parameter.name}><b>{parameter.name}</b><small>{parameter.type}</small></code>
+                      ))}
+                    </div>
+                  </section>
+                  <section>
+                    <strong>Outputs <span>{selectedDecision.outputs.length}</span></strong>
+                    <div>
+                      {selectedDecision.outputs.map((parameter) => (
+                        <code key={parameter.name}><b>{parameter.name}</b><small>{parameter.type}</small></code>
+                      ))}
+                    </div>
+                  </section>
+                </div>
                 <Link to={`/decision/${selectedDecision.id}/edit?version=${activeDecisionReferences[selectedDecision.id]}&from=policy&policy=${id}&returnTab=canvas`}>Open Decision Canvas →</Link>
               </aside>
             )}
@@ -501,8 +549,8 @@ function PolicyDetailPage() {
           </div>
           <div className="parameter-tabs">
             {[
+              { key: 'customer', label: 'Customer', count: parameters.customer.length },
               { key: 'feature', label: 'Feature', count: parameters.feature.length },
-              { key: 'local', label: 'Local', count: parameters.local.length },
               { key: 'output', label: 'Output', count: parameters.output.length },
             ].map((item) => (
               <button key={item.key} className={parameterType === item.key ? 'active' : ''} onClick={() => setParameterType(item.key)}>
@@ -517,7 +565,7 @@ function PolicyDetailPage() {
                   <th>Name</th><th>Type</th>
                   {parameterType === 'feature' && <><th>Component</th><th>Lookup Key</th></>}
                   {parameterType !== 'feature' && <th>Source</th>}
-                  <th>{parameterType === 'output' ? 'Returned By' : 'Used In'}</th>
+                  <th>{parameterType === 'output' ? 'Returned By' : parameterType === 'customer' ? 'Resolves' : 'Used In'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -527,7 +575,7 @@ function PolicyDetailPage() {
                     <td><code>{item.type}</code></td>
                     {parameterType === 'feature' && <><td>{item.component}</td><td><code>{item.key}</code></td></>}
                     {parameterType !== 'feature' && <td>{item.source}</td>}
-                    <td>{item.usedIn || item.source}</td>
+                    <td>{parameterType === 'output' ? item.returnedBy : item.usedIn || item.source}</td>
                   </tr>
                 ))}
               </tbody>

@@ -946,6 +946,8 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 18px 48px rgba(38, 23, 79, 0.16);
+  max-height: calc(100% - 36px);
+  overflow-y: auto;
 }
 
 .canvas-node-inspector h3 {
@@ -1007,6 +1009,70 @@
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+}
+
+.inspector-parameters {
+  display: grid;
+  gap: 13px;
+  margin: 0 0 17px;
+}
+
+.inspector-parameters section {
+  display: grid;
+  gap: 7px;
+}
+
+.inspector-parameters section > strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4e5869;
+  font-size: 11px;
+}
+
+.inspector-parameters section > strong span {
+  display: grid;
+  min-width: 17px;
+  height: 17px;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #f0e9ff;
+  color: #7440ce;
+  font-size: 9px;
+}
+
+.inspector-parameters section > div {
+  display: grid;
+  gap: 5px;
+}
+
+.inspector-parameters code {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #e8eaf0;
+  border-radius: 6px;
+  background: #fafbfc;
+  color: #4c5667;
+  font-family: inherit;
+}
+
+.inspector-parameters code b {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspector-parameters code small {
+  flex: 0 0 auto;
+  color: #929bab;
+  font-size: 9px;
 }
 
 .version-modal-backdrop {
@@ -1518,8 +1584,8 @@
   background: #5597ef;
 }
 
-.parameter-dot.local {
-  background: #e8a53b;
+.parameter-dot.customer {
+  background: #22b88f;
 }
 
 .parameter-dot.output {
