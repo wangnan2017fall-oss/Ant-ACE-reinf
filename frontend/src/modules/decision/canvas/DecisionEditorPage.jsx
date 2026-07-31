@@ -257,6 +257,7 @@ function DecisionEditorPage() {
   })
   const [actionExpressionPicker, setActionExpressionPicker] = useState(null)
   const [actionTargetPicker, setActionTargetPicker] = useState(null)
+  const [expandedActionDefaults, setExpandedActionDefaults] = useState({})
   const [blockRules, setBlockRules] = useState({})
   const [blockExpressionPicker, setBlockExpressionPicker] = useState(null)
   const [decisionTables, setDecisionTables] = useState({
@@ -1067,6 +1068,15 @@ function DecisionEditorPage() {
       ...current,
       [nodeId]: (current[nodeId] || []).map((row) => (
         row.id === rowId ? { ...row, dataType } : row
+      )),
+    }))
+  }
+
+  const updateActionDefaultValue = (nodeId, rowId, defaultValue) => {
+    setActionOperations((current) => ({
+      ...current,
+      [nodeId]: (current[nodeId] || []).map((row) => (
+        row.id === rowId ? { ...row, defaultValue } : row
       )),
     }))
   }
@@ -3568,6 +3578,17 @@ function DecisionEditorPage() {
                                   <option key={dataType} value={dataType}>{dataType}</option>
                                 ))}
                               </select>
+                              <button
+                                className="assignment-default-toggle"
+                                aria-label={`${expandedActionDefaults[operation.id] ? 'Hide' : 'Set'} default value for ${operation.target || `assignment ${rowIndex + 1}`}`}
+                                aria-expanded={Boolean(expandedActionDefaults[operation.id])}
+                                onClick={() => setExpandedActionDefaults((current) => ({
+                                  ...current,
+                                  [operation.id]: !current[operation.id],
+                                }))}
+                              >
+                                ↗
+                              </button>
                             </div>
                             <div className="assignment-grid-equals" aria-label="Assignment equals">=</div>
                             <div className="assignment-grid-expression">
@@ -3579,6 +3600,33 @@ function DecisionEditorPage() {
                               disabled={(actionOperations[selectedNode.id] || []).length === 1}
                               onClick={() => deleteActionOperation(selectedNode.id, operation.id)}
                             >−</button>
+                            {expandedActionDefaults[operation.id] && (
+                              <div className="assignment-default-editor">
+                                <div>
+                                  <strong>Default Value</strong>
+                                  <span>Used when the assignment expression returns no value.</span>
+                                </div>
+                                {operation.dataType === 'Boolean' ? (
+                                  <select
+                                    aria-label={`Default value for ${operation.target || `assignment ${rowIndex + 1}`}`}
+                                    value={operation.defaultValue || ''}
+                                    onChange={(event) => updateActionDefaultValue(selectedNode.id, operation.id, event.target.value)}
+                                  >
+                                    <option value="">No default</option>
+                                    <option value="true">true</option>
+                                    <option value="false">false</option>
+                                  </select>
+                                ) : (
+                                  <input
+                                    type={['Integer', 'Number'].includes(operation.dataType) ? 'number' : operation.dataType === 'Time' ? 'datetime-local' : 'text'}
+                                    aria-label={`Default value for ${operation.target || `assignment ${rowIndex + 1}`}`}
+                                    value={operation.defaultValue || ''}
+                                    placeholder={['Object', 'Array'].includes(operation.dataType) ? 'Enter JSON default value' : 'Enter default value'}
+                                    onChange={(event) => updateActionDefaultValue(selectedNode.id, operation.id, event.target.value)}
+                                  />
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

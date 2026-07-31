@@ -1275,11 +1275,12 @@
 }
 
 .assignment-grid-data-type {
-  padding: 9px 6px;
+  gap: 4px;
+  padding: 9px 5px;
 }
 
 .assignment-grid-data-type select {
-  width: 100%;
+  width: calc(100% - 27px);
   min-width: 0;
   height: 42px;
   padding: 0 24px 0 8px;
@@ -1290,6 +1291,77 @@
   font: inherit;
   font-size: 10px;
   outline: 0;
+}
+
+.assignment-default-toggle {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #d7dce4;
+  border-radius: 6px;
+  background: #fff;
+  color: #7e8795;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.assignment-default-toggle:hover,
+.assignment-default-toggle[aria-expanded="true"] {
+  border-color: #8a5bd4;
+  background: #f4efff;
+  color: #7040d8;
+}
+
+.assignment-default-editor {
+  display: grid;
+  grid-column: 2 / 6;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.25fr);
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  border-top: 1px solid #e8eaf0;
+  border-left: 1px solid #e8eaf0;
+  background: #fbf9ff;
+}
+
+.assignment-default-editor > div {
+  display: grid;
+  gap: 3px;
+}
+
+.assignment-default-editor strong {
+  color: #4f5665;
+  font-size: 10px;
+}
+
+.assignment-default-editor span {
+  color: #9299a6;
+  font-size: 8px;
+}
+
+.assignment-default-editor input,
+.assignment-default-editor select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid #dcdfe6;
+  border-radius: 7px;
+  background: #fff;
+  color: #4d5563;
+  font: inherit;
+  font-size: 10px;
+  outline: 0;
+}
+
+.assignment-default-editor input:focus,
+.assignment-default-editor select:focus {
+  border-color: #8a5bd4;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.08);
 }
 
 .assignment-grid-data-type select:focus {
