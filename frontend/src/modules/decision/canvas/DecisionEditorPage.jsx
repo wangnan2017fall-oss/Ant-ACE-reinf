@@ -1050,15 +1050,53 @@ function DecisionEditorPage() {
     )))
   }
 
-  const updateActionTarget = (nodeId, rowId, target) => {
-    const rows = (actionOperations[nodeId] || []).map((row) => row.id === rowId ? { ...row, target } : row)
+  const normalizeActionDataType = (dataType) => {
+    const normalized = String(dataType || '').toLowerCase()
+    if (['int', 'integer'].includes(normalized)) return 'Integer'
+    if (['number', 'double', 'float', 'decimal'].includes(normalized)) return 'Number'
+    if (['bool', 'boolean'].includes(normalized)) return 'Boolean'
+    if (['time', 'date', 'datetime'].includes(normalized)) return 'Time'
+    if (normalized === 'object') return 'Object'
+    if (normalized === 'array') return 'Array'
+    if (normalized === 'file') return 'File'
+    return 'String'
+  }
+
+  const inferActionTargetDataType = (target) => {
+    const targetName = target.split(' · ').at(-1)
+    const feature = featureVariables.find((variable) => variable.name === targetName)
+    if (feature) return normalizeActionDataType(feature.type)
+
+    const officialTypes = {
+      result: 'String',
+      reject_code: 'String',
+      reject_reason: 'String',
+      credit_limit: 'Number',
+      interest_rate: 'Number',
+      loan_term: 'Integer',
+    }
+    if (officialTypes[targetName]) return officialTypes[targetName]
+
+    const upstreamNode = nodes.find((node) => target.startsWith(`${node.label} · `))
+    const upstreamRow = upstreamNode
+      ? (actionOperations[upstreamNode.id] || []).find((row) => row.target.split(' · ').at(-1) === targetName)
+      : null
+    return upstreamRow?.dataType || 'String'
+  }
+
+  const updateActionTarget = (nodeId, rowId, target, options = {}) => {
+    const isNewTarget = Boolean(options.isNew)
+    const dataType = options.dataType || inferActionTargetDataType(target)
+    const rows = (actionOperations[nodeId] || []).map((row) => row.id === rowId
+      ? { ...row, target, dataType, isNewTarget }
+      : row)
     commitActionRows(nodeId, rows)
     setActionTargetPicker(null)
   }
 
   const updateActionTargetText = (nodeId, rowId, target) => {
     const rows = (actionOperations[nodeId] || []).map((row) => (
-      row.id === rowId ? { ...row, target } : row
+      row.id === rowId ? { ...row, target, isNewTarget: true } : row
     ))
     commitActionRows(nodeId, rows)
   }
@@ -1764,6 +1802,7 @@ function DecisionEditorPage() {
         category: 'feature',
         label: variable.name,
         detail: `${variable.component} · ${variable.type}`,
+        dataType: normalizeActionDataType(variable.type),
         operand: { kind: 'variable', value: `Feature · ${variable.name}`, sourceType: 'feature' },
       })),
       ...getUpstreamNodes(selectedNode.id).flatMap((node) => (
@@ -1771,6 +1810,7 @@ function DecisionEditorPage() {
           category: 'local',
           label: output,
           detail: node.label,
+          dataType: inferActionTargetDataType(`${node.label} · ${output}`),
           operand: { kind: 'variable', value: `${node.label} · ${output}`, sourceType: 'local' },
         }))
       )),
@@ -1780,6 +1820,7 @@ function DecisionEditorPage() {
         category: 'output',
         label: row.target.split(' · ').at(-1),
         detail: selectedNode.label,
+        dataType: row.dataType || 'String',
         operand: { kind: 'variable', value: `Output · ${row.target.split(' · ').at(-1)}`, sourceType: 'output' },
         })),
     ]
@@ -1911,6 +1952,7 @@ function DecisionEditorPage() {
       category: 'output',
       label: name,
       detail: 'Policy output',
+      dataType: inferActionTargetDataType(name),
       target: `Output · ${name}`,
     }))
     const options = [
@@ -1918,6 +1960,7 @@ function DecisionEditorPage() {
         category: option.category,
         label: option.label,
         detail: option.detail,
+        dataType: option.dataType,
         target: option.operand.value,
       })),
       ...officialOutputs,
@@ -1958,7 +2001,7 @@ function DecisionEditorPage() {
             <section>
               <small>{category}</small>
               {options.map((option) => (
-                <button key={option.target} onClick={() => updateActionTarget(nodeId, operation.id, option.target)}>
+                <button key={option.target} onClick={() => updateActionTarget(nodeId, operation.id, option.target, { dataType: option.dataType })}>
                   <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'local' ? 'L' : 'O'}</i>
                   <span><strong>{option.label}</strong><small>{option.detail}</small></span>
                 </button>
@@ -1978,6 +2021,7 @@ function DecisionEditorPage() {
                       nodeId,
                       operation.id,
                       `Output · ${actionTargetPicker.newName.trim()}`,
+                      { isNew: true, dataType: operation.dataType || 'String' },
                     )}
                   >＋ Create</button>
                 </div>
@@ -3572,6 +3616,8 @@ function DecisionEditorPage() {
                               <select
                                 aria-label={`Assignment data type ${rowIndex + 1}`}
                                 value={operation.dataType || 'String'}
+                                disabled={Boolean(operation.target) && !operation.isNewTarget}
+                                title={Boolean(operation.target) && !operation.isNewTarget ? 'Data type is inherited from the selected variable' : 'Select data type for the new variable'}
                                 onChange={(event) => updateActionDataType(selectedNode.id, operation.id, event.target.value)}
                               >
                                 {['String', 'Integer', 'Number', 'Boolean', 'Time', 'Object', 'Array', 'File'].map((dataType) => (

@@ -1318,11 +1318,11 @@
 
 .assignment-default-editor {
   display: grid;
-  grid-column: 2 / 6;
-  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.25fr);
+  grid-column: 2 / 4;
+  grid-template-columns: minmax(145px, 0.72fr) 92px;
   align-items: center;
-  gap: 16px;
-  padding: 10px 12px;
+  gap: 0;
+  padding: 10px 0;
   border-top: 1px solid #e8eaf0;
   border-left: 1px solid #e8eaf0;
   background: #fbf9ff;
@@ -1331,6 +1331,7 @@
 .assignment-default-editor > div {
   display: grid;
   gap: 3px;
+  padding: 0 12px;
 }
 
 .assignment-default-editor strong {
@@ -1348,7 +1349,7 @@
   width: 100%;
   min-width: 0;
   height: 34px;
-  padding: 0 9px;
+  padding: 0 7px;
   border: 1px solid #dcdfe6;
   border-radius: 7px;
   background: #fff;
@@ -1356,6 +1357,15 @@
   font: inherit;
   font-size: 10px;
   outline: 0;
+}
+
+.assignment-grid-data-type select:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: #697384;
+  cursor: default;
+  opacity: 1;
+  -webkit-text-fill-color: #697384;
 }
 
 .assignment-default-editor input:focus,
