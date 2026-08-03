@@ -5,7 +5,7 @@ import './DecisionEditorPage.css'
 const nodeTypes = [
   { type: 'ifElse', label: 'If-Else', icon: '≷', color: '#d8c6ff', group: 'basic' },
   { type: 'action', label: 'Assignment', icon: '▤', color: '#ffd2c5', group: 'basic' },
-  { type: 'block', label: 'Block', icon: '⊘', color: '#ffc8ce', group: 'business' },
+  { type: 'block', label: 'Hard Rules', icon: '⊘', color: '#ffc8ce', group: 'business' },
   { type: 'decisionTable', label: 'Decision Table', icon: '▦', color: '#c9ddff', group: 'business' },
   { type: 'cross', label: 'Cross', icon: '⊞', color: '#bfeaf5', group: 'business' },
 ]
@@ -3339,7 +3339,7 @@ function DecisionEditorPage() {
                     <section className="block-config-section">
                       <div className="block-config-title">
                         <div>
-                          <strong>Block rules</strong>
+                          <strong>Hard Rules</strong>
                           <span>The first matched rule rejects and stops the decision</span>
                         </div>
                         <button onClick={() => addBlockRule(selectedNode.id)}>＋ Add rule</button>
@@ -3348,9 +3348,9 @@ function DecisionEditorPage() {
                         <article className="block-rule-card" key={rule.id}>
                           <header>
                             <span className="block-rule-index">{ruleIndex + 1}</span>
-                            <div><strong>Block rule {ruleIndex + 1}</strong><small>Priority {ruleIndex + 1}</small></div>
+                            <div><strong>Rule {ruleIndex + 1}</strong><small>Priority {ruleIndex + 1}</small></div>
                             <button
-                              aria-label={`Delete block rule ${ruleIndex + 1}`}
+                              aria-label={`Delete hard rule ${ruleIndex + 1}`}
                               disabled={(blockRules[selectedNode.id] || []).length === 1}
                               onClick={() => deleteBlockRule(selectedNode.id, rule.id)}
                             >−</button>
@@ -3390,7 +3390,7 @@ function DecisionEditorPage() {
                                         </div>
                                         <input
                                           autoFocus
-                                          aria-label="Full block condition expression"
+                                          aria-label="Full hard rule condition expression"
                                           value={condition.fullExpression || ''}
                                           placeholder="Expression"
                                           onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'fullExpression', event.target.value)}
@@ -3400,7 +3400,7 @@ function DecisionEditorPage() {
                                     : (
                                       <>
                                         <select
-                                          aria-label="Block condition variable"
+                                          aria-label="Hard rule condition variable"
                                           value={condition.variable}
                                           onChange={(event) => {
                                             const nextVariable = event.target.value
@@ -3427,21 +3427,21 @@ function DecisionEditorPage() {
                                           ))}
                                         </select>
                                         <select
-                                          aria-label="Block condition operator"
+                                          aria-label="Hard rule condition operator"
                                           value={condition.operator}
                                           onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'operator', event.target.value)}
                                         >
                                           {operators.map((operator) => <option key={operator}>{operator}</option>)}
                                         </select>
                                         <input
-                                          aria-label="Block condition value"
+                                          aria-label="Hard rule condition value"
                                           value={condition.expression}
                                           placeholder={`Enter ${variableType === 'unknown' ? 'value' : variableType}`}
                                           onChange={(event) => updateBlockCondition(selectedNode.id, rule.id, condition.id, 'expression', event.target.value)}
                                         />
                                         <button
                                           className="block-condition-source"
-                                          aria-label="Choose block right value source"
+                                          aria-label="Choose hard rule right value source"
                                           onClick={() => setConditionValuePicker(blockPickerOpen
                                             ? null
                                             : { mode: 'block', nodeId: selectedNode.id, ruleId: rule.id, conditionId: condition.id })}
@@ -3489,7 +3489,7 @@ function DecisionEditorPage() {
                                     )}
                                   <button
                                     className="block-condition-remove"
-                                    aria-label="Remove block condition"
+                                    aria-label="Remove hard rule condition"
                                     disabled={rule.conditions.length === 1}
                                     onClick={() => deleteBlockCondition(selectedNode.id, rule.id, condition.id)}
                                   >−</button>
@@ -3500,12 +3500,12 @@ function DecisionEditorPage() {
                           <div className="block-assignments">
                             <div className="block-assignment-title">
                               <strong>Action</strong>
-                              <button aria-label="Add block return value" onClick={() => addBlockAssignment(selectedNode.id, rule.id)}>＋</button>
+                              <button aria-label="Add hard rule return value" onClick={() => addBlockAssignment(selectedNode.id, rule.id)}>＋</button>
                             </div>
                             {rule.assignments.map((assignment) => (
                               <div className="block-assignment-row" key={assignment.id}>
                                 <input
-                                  aria-label="Block return variable"
+                                  aria-label="Hard rule return variable"
                                   value={assignment.target}
                                   readOnly={assignment.target === 'reject_reason'}
                                   placeholder="Variable"
@@ -3523,13 +3523,13 @@ function DecisionEditorPage() {
                                 </select>
                                 <strong>=</strong>
                                 <input
-                                  aria-label={`${assignment.target || 'Block'} value`}
+                                  aria-label={`${assignment.target || 'Hard Rules'} value`}
                                   value={assignment.value}
                                   placeholder={assignment.target === 'reject_reason' ? 'Enter reject reason' : 'Enter value'}
                                   onChange={(event) => updateBlockAssignment(selectedNode.id, rule.id, assignment.id, 'value', event.target.value)}
                                 />
                                 <button
-                                  aria-label="Remove block return value"
+                                  aria-label="Remove hard rule return value"
                                   disabled={assignment.target === 'reject_reason'}
                                   onClick={() => deleteBlockAssignment(selectedNode.id, rule.id, assignment.id)}
                                 >−</button>
