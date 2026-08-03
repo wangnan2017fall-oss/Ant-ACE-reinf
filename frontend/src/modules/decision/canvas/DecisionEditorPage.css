@@ -1260,6 +1260,7 @@
   grid-template-columns: 34px minmax(145px, 0.72fr) 92px 34px minmax(245px, 1.28fr) 28px;
   min-height: 76px;
   border-top: 1px solid #e8eaf0;
+  background: #fff;
 }
 
 .assignment-grid-target,
@@ -1319,6 +1320,7 @@
 .assignment-default-editor {
   display: grid;
   grid-column: 2 / 4;
+  grid-row: 2;
   grid-template-columns: minmax(145px, 0.72fr) 92px;
   align-items: center;
   gap: 0;
