@@ -1781,9 +1781,9 @@ function DecisionEditorPage() {
 
   const actionPickerCategories = [
     { id: 'all', label: 'All', icon: '⌘' },
+    { id: 'custom', label: 'Custom', icon: 'C' },
     { id: 'feature', label: 'Feature', icon: 'F' },
-    { id: 'local', label: 'Local', icon: 'L' },
-    { id: 'output', label: 'Output', icon: 'O' },
+    { id: 'local', label: 'Upstream Output', icon: 'N' },
     { id: 'function', label: 'Function', icon: 'ƒ' },
     { id: 'constant', label: 'Constant', icon: '#' },
   ]
@@ -1798,6 +1798,13 @@ function DecisionEditorPage() {
 
   const actionPickerOptions = selectedNode
     ? [
+      ...customConditionVariables.map((variable) => ({
+        category: 'custom',
+        label: variable.name,
+        detail: variable.type,
+        dataType: normalizeActionDataType(variable.type),
+        operand: { kind: 'variable', value: `Custom · ${variable.name}`, sourceType: 'custom' },
+      })),
       ...featureVariables.map((variable) => ({
         category: 'feature',
         label: variable.name,
@@ -1814,15 +1821,6 @@ function DecisionEditorPage() {
           operand: { kind: 'variable', value: `${node.label} · ${output}`, sourceType: 'local' },
         }))
       )),
-      ...(actionOperations[selectedNode.id] || [])
-        .filter((row) => row.target && (!row.target.includes(' · ') || row.target.startsWith('Output ·')))
-        .map((row) => ({
-        category: 'output',
-        label: row.target.split(' · ').at(-1),
-        detail: selectedNode.label,
-        dataType: row.dataType || 'String',
-        operand: { kind: 'variable', value: `Output · ${row.target.split(' · ').at(-1)}`, sourceType: 'output' },
-        })),
     ]
     : []
 
@@ -1948,25 +1946,15 @@ function DecisionEditorPage() {
     if (actionTargetPicker?.rowId !== operation.id) return null
     const category = actionTargetPicker.category || 'feature'
     const query = (actionTargetPicker.query || '').trim().toLowerCase()
-    const officialOutputs = ['result', 'reject_code', 'reject_reason', 'credit_limit', 'interest_rate', 'loan_term'].map((name) => ({
-      category: 'output',
-      label: name,
-      detail: 'Policy output',
-      dataType: inferActionTargetDataType(name),
-      target: `Output · ${name}`,
-    }))
-    const options = [
-      ...actionPickerOptions.map((option) => ({
+    const options = actionPickerOptions.map((option) => ({
         category: option.category,
         label: option.label,
         detail: option.detail,
         dataType: option.dataType,
         target: option.operand.value,
-      })),
-      ...officialOutputs,
-    ].filter((option, index, all) => (
-      ['feature', 'local', 'output'].includes(option.category)
-      && option.category === category
+      })).filter((option, index, all) => (
+      ['custom', 'feature', 'local'].includes(option.category)
+      && (query ? ['custom', 'feature'].includes(option.category) : option.category === category)
       && (!query || `${option.label} ${option.detail}`.toLowerCase().includes(query))
       && all.findIndex((item) => item.target === option.target) === index
     ))
@@ -1976,9 +1964,9 @@ function DecisionEditorPage() {
           <span>⌕</span>
           <input
             autoFocus
-            aria-label="Search assignment variables"
+            aria-label="Search Feature or Custom variables"
             value={actionTargetPicker.query || ''}
-            placeholder="Search variables"
+            placeholder="Search Feature or Custom by variable name"
             onChange={(event) => setActionTargetPicker((current) => ({ ...current, query: event.target.value }))}
           />
           <button onClick={() => setActionTargetPicker(null)}>×</button>
@@ -1986,9 +1974,9 @@ function DecisionEditorPage() {
         <div className="action-picker-body">
           <nav className="action-picker-categories">
             {[
+              { id: 'custom', label: 'Custom', icon: 'C' },
               { id: 'feature', label: 'Feature', icon: 'F' },
-              { id: 'local', label: 'Local', icon: 'L' },
-              { id: 'output', label: 'Output', icon: 'O' },
+              { id: 'local', label: 'Upstream Output', icon: 'N' },
             ].map((item) => (
               <button
                 className={category === item.id ? 'active' : ''}
@@ -1999,33 +1987,14 @@ function DecisionEditorPage() {
           </nav>
           <div className="action-picker-results">
             <section>
-              <small>{category}</small>
+              <small>{query ? 'Search Result' : category}</small>
               {options.map((option) => (
                 <button key={option.target} onClick={() => updateActionTarget(nodeId, operation.id, option.target, { dataType: option.dataType })}>
-                  <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'local' ? 'L' : 'O'}</i>
+                  <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'custom' ? 'C' : 'N'}</i>
                   <span><strong>{option.label}</strong><small>{option.detail}</small></span>
                 </button>
               ))}
               {!options.length && <p>No matching variables</p>}
-              {category === 'output' && (
-                <div className="assignment-create-variable">
-                  <input
-                    aria-label="New assignment variable name"
-                    value={actionTargetPicker.newName || ''}
-                    placeholder="New variable name"
-                    onChange={(event) => setActionTargetPicker((current) => ({ ...current, newName: event.target.value }))}
-                  />
-                  <button
-                    disabled={!actionTargetPicker.newName?.trim()}
-                    onClick={() => updateActionTarget(
-                      nodeId,
-                      operation.id,
-                      `Output · ${actionTargetPicker.newName.trim()}`,
-                      { isNew: true, dataType: operation.dataType || 'String' },
-                    )}
-                  >＋ Create</button>
-                </div>
-              )}
             </section>
           </div>
         </div>
@@ -2061,14 +2030,13 @@ function DecisionEditorPage() {
     const query = (actionExpressionPicker.query || '').trim().toLowerCase()
     const currentOperand = getActionOperandAtPath(operation, path)
     const variableOptions = actionPickerOptions.filter((option) => (
-      (category === 'all' || category === option.category)
+      (query ? ['custom', 'feature'].includes(option.category) : category === 'all' || category === option.category)
       && (!query || `${option.label} ${option.detail}`.toLowerCase().includes(query))
     ))
     const functionOptions = actionFunctionOptions.filter((option) => (
-      (category === 'all' || category === 'function')
-      && (!query || `${option.name} ${option.description}`.toLowerCase().includes(query))
+      !query && (category === 'all' || category === 'function')
     ))
-    const showConstants = category === 'all' || category === 'constant'
+    const showConstants = !query && (category === 'all' || category === 'constant')
     const chooseOperand = (operand) => setActionOperandAtPath(nodeId, operation.id, path, operand)
     return (
       <div className="action-value-picker">
@@ -2076,9 +2044,9 @@ function DecisionEditorPage() {
           <span>⌕</span>
           <input
             autoFocus
-            aria-label="Search variables and functions"
+            aria-label="Search Feature or Custom variables"
             value={actionExpressionPicker.query || ''}
-            placeholder="Search variables or functions"
+            placeholder="Search Feature or Custom by variable name"
             onChange={(event) => setActionExpressionPicker((current) => ({ ...current, query: event.target.value }))}
           />
           <button onClick={() => setActionExpressionPicker(null)}>×</button>
@@ -2098,7 +2066,7 @@ function DecisionEditorPage() {
           <div className="action-picker-results">
             {variableOptions.length > 0 && (
               <section>
-                <small>{category === 'all' ? 'Variables' : actionPickerCategories.find((item) => item.id === category)?.label}</small>
+                <small>{query ? 'Search Result' : category === 'all' ? 'Variables' : actionPickerCategories.find((item) => item.id === category)?.label}</small>
                 {variableOptions.map((option) => (
                   <button
                     draggable
@@ -2106,7 +2074,7 @@ function DecisionEditorPage() {
                     onDragStart={() => { actionModuleDragRef.current = option.operand }}
                     onClick={() => chooseOperand(option.operand)}
                 >
-                    <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'local' ? 'L' : 'O'}</i>
+                    <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'custom' ? 'C' : 'N'}</i>
                     <span><strong>{option.label}</strong><small>{option.detail}</small></span>
                   </button>
                 ))}
@@ -2437,7 +2405,7 @@ function DecisionEditorPage() {
     ]
     const normalizedQuery = query.trim().toLowerCase()
     return options.filter((option) => (
-      (category === 'all' || option.category === category)
+      (normalizedQuery ? ['custom', 'feature'].includes(option.category) : category === 'all' || option.category === category)
       && (!normalizedQuery || `${option.label} ${option.detail}`.toLowerCase().includes(normalizedQuery))
     ))
   }
@@ -2497,7 +2465,7 @@ function DecisionEditorPage() {
               <input
                 autoFocus
                 value={decisionTablePicker.query || ''}
-                placeholder="Search variables, functions, or operators"
+                placeholder="Search Feature or Custom by variable name"
                 onChange={(event) => setDecisionTablePicker((current) => ({ ...current, query: event.target.value }))}
               />
               <button onClick={() => setDecisionTablePicker(null)}>×</button>
@@ -2517,8 +2485,8 @@ function DecisionEditorPage() {
                 ))}
               </nav>
               <section>
-                <small>{category === 'all' ? 'Recent used' : decisionTablePickerCategories.find((item) => item.id === category)?.label}</small>
-                {(category === 'all' || category === 'custom') && (
+                <small>{decisionTablePicker.query ? 'Search Result' : category === 'all' ? 'Recent used' : decisionTablePickerCategories.find((item) => item.id === category)?.label}</small>
+                {!decisionTablePicker.query && (category === 'all' || category === 'custom') && (
                   <div className="decision-table-constants">
                     {['Number', 'Text'].map((valueType) => (
                       <button
@@ -3579,14 +3547,14 @@ function DecisionEditorPage() {
                               <div className="action-target-wrap">
                                 <div className={operation.target ? 'assignment-target-combobox selected' : 'assignment-target-combobox'}>
                                   {operation.target && (
-                                    <i className={operation.target.startsWith('Feature ·') ? 'feature' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'output' : 'local'}>
-                                      {operation.target.startsWith('Feature ·') ? 'F' : operation.target.startsWith('Output ·') || !operation.target.includes(' · ') ? 'O' : 'L'}
+                                    <i className={operation.target.startsWith('Feature ·') ? 'feature' : operation.target.startsWith('Custom ·') || !operation.target.includes(' · ') ? 'custom' : 'local'}>
+                                      {operation.target.startsWith('Feature ·') ? 'F' : operation.target.startsWith('Custom ·') || !operation.target.includes(' · ') ? 'C' : 'N'}
                                     </i>
                                   )}
                                   <input
                                     aria-label={`Enter or select assignment variable ${rowIndex + 1}`}
-                                    value={operation.target.startsWith('Output · ')
-                                      ? operation.target.slice('Output · '.length)
+                                    value={operation.target.startsWith('Custom · ')
+                                      ? operation.target.slice('Custom · '.length)
                                       : operation.target}
                                     placeholder="Select or enter variable"
                                     onChange={(event) => updateActionTargetText(selectedNode.id, operation.id, event.target.value)}
@@ -3600,8 +3568,8 @@ function DecisionEditorPage() {
                                       rowId: operation.id,
                                       category: operation.target.startsWith('Feature ·')
                                         ? 'feature'
-                                        : operation.target.startsWith('Output ·') || !operation.target.includes(' · ')
-                                          ? 'output'
+                                        : operation.target.startsWith('Custom ·') || !operation.target.includes(' · ')
+                                          ? 'custom'
                                           : 'local',
                                       query: '',
                                       newName: '',
