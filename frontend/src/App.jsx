@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, useLocation } from 'react-router-dom'
+import { BrowserRouter, HashRouter, useLocation } from 'react-router-dom'
 import AppRoutes from './router/AppRoutes'
 import Sidebar from './shell/Sidebar/Sidebar'
 import './App.css'
@@ -32,8 +32,10 @@ function AppShell() {
 }
 
 function App() {
+  const Router = import.meta.env.BASE_URL === '/' ? BrowserRouter : HashRouter
+
   return (
-    <Router basename={import.meta.env.BASE_URL}>
+    <Router>
       <AppShell />
     </Router>
   )
