@@ -219,6 +219,31 @@ function MiniFlow({ nodes, compact = false, onNodeClick, selectedNode = '' }) {
   )
 }
 
+function PolicyCanvasPreview({ onDecisionClick, onAbTestingClick, selected = false }) {
+  return (
+    <div className="policy-canvas-preview" aria-label="Policy flow preview">
+      <div className="policy-preview-terminal input"><span>⇩</span><strong>Input</strong></div>
+      <span className="policy-preview-connector">↓</span>
+      <button
+        className={`policy-preview-card decision ${selected ? 'selected' : ''}`}
+        onClick={onDecisionClick}
+        type="button"
+      >
+        <i>♧</i>
+        <span><small>Decision</small><strong>app_credit_new_ae_user_decision</strong></span>
+        <em>V1.0.0</em>
+      </button>
+      <span className="policy-preview-connector long">↓</span>
+      <button className="policy-preview-card testing" onClick={onAbTestingClick} type="button">
+        <i>⌘</i>
+        <span><small>ab_test</small><strong>A/B Testing</strong></span>
+      </button>
+      <span className="policy-preview-connector">↓</span>
+      <div className="policy-preview-terminal output"><span>↪</span><strong>Output</strong></div>
+    </div>
+  )
+}
+
 function PolicyDetailPage() {
   const { id = '1' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -418,18 +443,13 @@ function PolicyDetailPage() {
               <Link className="expand-canvas-button" to={`/policy/${id}/edit?version=${activeVersion}`} aria-label="Open full Policy Canvas">⛶ Expand</Link>
             </div>
           </div>
-          <div className="policy-canvas">
+          <div className="policy-canvas policy-canvas-with-preview">
             <div className="canvas-lane-label">Main flow</div>
-            <MiniFlow
-              nodes={['Start', 'credit_eligibility_decision', 'limit_pricing_decision', 'anti_fraud_decision', 'End']}
-              onNodeClick={setSelectedPolicyDecision}
-              selectedNode={selectedPolicyDecision}
+            <PolicyCanvasPreview
+              onDecisionClick={() => setSelectedPolicyDecision('credit_eligibility_decision')}
+              onAbTestingClick={() => changeTab('ab-testing')}
+              selected={selectedPolicyDecision === 'credit_eligibility_decision'}
             />
-            <div className="canvas-context">
-              <span><b>User</b> · user_id</span>
-              <span><b>Shop</b> · shop_id</span>
-              <span>4 outputs</span>
-            </div>
             {selectedDecision && (
               <aside className="canvas-node-inspector">
                 <button className="inspector-close" onClick={() => setSelectedPolicyDecision('')} aria-label="Close node details">×</button>

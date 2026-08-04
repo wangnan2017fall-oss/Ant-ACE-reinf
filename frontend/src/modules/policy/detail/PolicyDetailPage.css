@@ -843,6 +843,10 @@
   background-size: 18px 18px;
 }
 
+.policy-canvas.policy-canvas-with-preview {
+  padding: 24px 45px 30px;
+}
+
 .canvas-lane-label {
   position: absolute;
   top: 22px;
@@ -853,6 +857,117 @@
   color: #7143c9;
   font-size: 11px;
   font-weight: 600;
+}
+
+.policy-canvas-preview {
+  display: flex;
+  min-height: 370px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.policy-preview-terminal {
+  display: flex;
+  min-width: 112px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #9de4ba;
+  border-radius: 10px;
+  background: #dcfae7;
+  color: #147a45;
+  box-shadow: 0 3px 10px rgba(18, 113, 65, 0.05);
+  font-size: 13px;
+}
+
+.policy-preview-terminal span {
+  font-size: 18px;
+}
+
+.policy-preview-connector {
+  display: grid;
+  width: 1px;
+  height: 44px;
+  place-items: end center;
+  background: #c0c8d4;
+  color: #9aa6b6;
+  font-size: 16px;
+  line-height: 10px;
+}
+
+.policy-preview-connector.long {
+  height: 62px;
+}
+
+.policy-preview-card {
+  display: grid;
+  width: 282px;
+  min-height: 64px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid #d9dfe7;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 5px 14px rgba(34, 45, 66, 0.06);
+  color: #20293a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.policy-preview-card:hover,
+.policy-preview-card.selected {
+  border-color: #7c5ce5;
+  box-shadow: 0 0 0 3px rgba(124, 92, 229, 0.1), 0 8px 22px rgba(38, 28, 82, 0.1);
+}
+
+.policy-preview-card i {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 9px;
+  background: #b9eff3;
+  color: #176979;
+  font-size: 17px;
+  font-style: normal;
+}
+
+.policy-preview-card.testing i {
+  background: #aef0dc;
+  color: #087c67;
+}
+
+.policy-preview-card > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.policy-preview-card small {
+  color: #7b8798;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.policy-preview-card strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.policy-preview-card em {
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #f5f6f8;
+  color: #5f6979;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .policy-mini-flow {
