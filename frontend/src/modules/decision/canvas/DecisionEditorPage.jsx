@@ -1471,6 +1471,99 @@ function DecisionEditorPage() {
     )
   }
 
+  const getEndTemporaryOptions = (nodeId) => {
+    const seen = new Set()
+    return getUpstreamNodes(nodeId)
+      .filter((node) => node.type !== 'start')
+      .flatMap((node) => (node.outputs || []).map((output) => ({
+        value: `${node.id}:${output}`,
+        name: output,
+        sourceNodeId: node.id,
+        sourceLabel: node.label,
+      })))
+      .filter((option) => {
+        if (seen.has(option.name)) return false
+        seen.add(option.name)
+        return true
+      })
+  }
+
+  const commitEndOutputs = (rows) => {
+    setInputBindings((current) => ({ ...current, end: rows }))
+    setNodes((current) => current.map((node) => (
+      node.id === 'end'
+        ? { ...node, inputs: rows.filter((row) => row.sourceId).map((row) => row.sourceId) }
+        : node
+    )))
+  }
+
+  const addEndOutput = () => {
+    const rows = inputBindings.end || []
+    commitEndOutputs([
+      ...rows,
+      { id: `end-output-${Date.now()}`, name: '', sourceType: '', sourceNodeId: '', sourceId: '', sourceLabel: '' },
+    ])
+  }
+
+  const updateEndOutput = (rowId, value) => {
+    const option = getEndTemporaryOptions('end').find((item) => item.value === value)
+    if (!option) return
+    commitEndOutputs((inputBindings.end || []).map((row) => (
+      row.id === rowId
+        ? {
+          ...row,
+          name: option.name,
+          sourceType: 'temporary',
+          sourceNodeId: option.sourceNodeId,
+          sourceId: option.name,
+          sourceLabel: `${option.sourceLabel} · ${option.name}`,
+        }
+        : row
+    )))
+  }
+
+  const deleteEndOutput = (rowId) => {
+    commitEndOutputs((inputBindings.end || []).filter((row) => row.id !== rowId))
+  }
+
+  const renderEndOutputs = (node) => {
+    const rows = inputBindings.end || []
+    const options = getEndTemporaryOptions(node.id)
+    const selectedNames = new Set(rows.map((row) => row.sourceId).filter(Boolean))
+    return (
+      <section className="end-output-section">
+        <div className="binding-section-title">
+          <strong>Outputs</strong>
+          <button aria-label="Add End output" onClick={addEndOutput}>＋</button>
+        </div>
+        <span className="end-output-column-label">Variable</span>
+        {rows.map((row) => (
+          <div className="end-output-row" key={row.id}>
+            <span className="end-temporary-icon">T</span>
+            <select
+              aria-label="Select Temporary output"
+              value={row.sourceId ? `${row.sourceNodeId}:${row.sourceId}` : ''}
+              onChange={(event) => updateEndOutput(row.id, event.target.value)}
+            >
+              <option value="" disabled>Select Temporary</option>
+              <optgroup label="Temporary">
+                {options.map((option) => (
+                  <option
+                    disabled={selectedNames.has(option.name) && option.name !== row.sourceId}
+                    key={option.value}
+                    value={option.value}
+                  >{option.name}</option>
+                ))}
+              </optgroup>
+            </select>
+            <button aria-label={`Remove ${row.sourceId || 'output'}`} onClick={() => deleteEndOutput(row.id)}>−</button>
+          </div>
+        ))}
+        {!rows.length && <p className="binding-empty">Add an output and select a Temporary variable.</p>}
+      </section>
+    )
+  }
+
   const getConditionVariableType = (variable, upstreamNodes = []) => {
     if (!variable) return 'unknown'
     const featureName = variable.startsWith('Feature · ') ? variable.replace('Feature · ', '') : ''
@@ -3670,7 +3763,7 @@ function DecisionEditorPage() {
                   </>
                 ) : selectedNode.type === 'end' ? (
                   <>
-                    {renderInputBindings(selectedNode)}
+                    {renderEndOutputs(selectedNode)}
                     <p className="drawer-tip">End returns the final decision outputs to the calling system.</p>
                   </>
                 ) : (
