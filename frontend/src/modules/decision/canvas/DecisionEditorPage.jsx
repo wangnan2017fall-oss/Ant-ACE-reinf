@@ -223,7 +223,7 @@ function DecisionEditorPage() {
     shop_id: 'String',
   })
   const [conditionRows, setConditionRows] = useState({
-    true: [{ id: 1, logic: 'AND', variable: 'Feature · credit_report_score', operator: '>=', expression: '700', rightMode: 'value' }],
+    true: [{ id: 1, logic: 'AND', operator: 'Expression', fullExpression: 'Feature · credit_report_score >= 700' }],
   })
   const [conditionBranchOrder, setConditionBranchOrder] = useState(['true'])
   const [actionOperations, setActionOperations] = useState({
@@ -871,7 +871,7 @@ function DecisionEditorPage() {
   const addCondition = (branch) => {
     setConditionRows((current) => ({
       ...current,
-      [branch]: [...current[branch], { id: Date.now(), logic: 'AND', variable: '', operator: '=', expression: '', rightMode: 'value' }],
+      [branch]: [...current[branch], { id: Date.now(), logic: 'AND', operator: 'Expression', fullExpression: '' }],
     }))
   }
 
@@ -895,7 +895,7 @@ function DecisionEditorPage() {
     const branchId = `branch-${Date.now()}`
     setConditionRows((current) => ({
       ...current,
-      [branchId]: [{ id: Date.now(), logic: 'AND', variable: '', operator: '=', expression: '', rightMode: 'value' }],
+      [branchId]: [{ id: Date.now(), logic: 'AND', operator: 'Expression', fullExpression: '' }],
     }))
     setConditionBranchOrder((current) => [...current, branchId])
   }
@@ -1704,7 +1704,6 @@ function DecisionEditorPage() {
   }
 
   const renderConditionGroup = (branch, label, priority) => {
-    const upstreamNodes = selectedNode ? getUpstreamNodes(selectedNode.id) : []
     return (
     <div className="selector-branch-card">
       <div className="selector-branch-header">
@@ -1714,9 +1713,12 @@ function DecisionEditorPage() {
         <button aria-label={`Remove ${label}`} onClick={() => deleteConditionBranch(branch)}>−</button>
       </div>
       {conditionRows[branch].map((row, rowIndex) => {
-        const variableType = getConditionVariableType(row.variable, upstreamNodes)
-        const operators = getConditionOperators(variableType)
-        const fullExpressionMode = row.operator === 'Expression'
+        const legacyExpression = row.variable
+          ? `${row.variable} ${row.operator || ''} ${row.expression || ''}`.trim()
+          : ''
+        const expressionValue = Object.prototype.hasOwnProperty.call(row, 'fullExpression')
+          ? row.fullExpression
+          : legacyExpression
         return (
         <div className="condition-entry" key={row.id}>
           {rowIndex > 0 && (
@@ -1729,137 +1731,17 @@ function DecisionEditorPage() {
               <span />
             </div>
           )}
-          <div className={`condition-row ${fullExpressionMode ? 'full-expression-mode' : ''}`}>
-            {fullExpressionMode
-              ? (
-                <div className="condition-full-expression">
-                  <div>
-                    <strong>Expression</strong>
-                    <button onClick={() => updateCondition(branch, row.id, 'operator', '=')}>Use simple condition</button>
-                  </div>
-                  <input
-                    autoFocus
-                    aria-label="Full condition expression"
-                    value={row.fullExpression || ''}
-                    placeholder="Expression"
-                    onChange={(event) => updateCondition(branch, row.id, 'fullExpression', event.target.value)}
-                  />
-                </div>
-              )
-              : (
-                <>
-                  <select
-                    aria-label="Left variable"
-                    className="condition-variable"
-                    value={row.variable}
-                    onChange={(event) => {
-                      const nextVariable = event.target.value
-                      const nextOperators = getConditionOperators(getConditionVariableType(nextVariable, upstreamNodes))
-                      updateCondition(branch, row.id, 'variable', nextVariable)
-                      if (!nextOperators.includes(row.operator)) updateCondition(branch, row.id, 'operator', nextOperators[0])
-                    }}
-                  >
-                    <option value="">Select left variable</option>
-                    <optgroup label="Feature">
-                      {featureVariables.map((feature) => <option key={feature.name}>{`Feature · ${feature.name}`}</option>)}
-                    </optgroup>
-                    <optgroup label="Custom">
-                      {customConditionVariables.map((variable) => <option key={variable.name}>{`Custom · ${variable.name}`}</option>)}
-                    </optgroup>
-                    {upstreamNodes.map((node) => (
-                      <optgroup label={node.label} key={node.id}>
-                        {(node.outputs || []).map((output) => <option key={output}>{`${node.label} · ${output}`}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <div className="condition-comparison">
-                    <select aria-label="Operator" value={row.operator || '='} onChange={(event) => updateCondition(branch, row.id, 'operator', event.target.value)}>
-                      {operators.map((operator) => <option key={operator}>{operator}</option>)}
-                    </select>
-                    {row.rightMode === 'expression'
-                      ? renderConditionExpression(branch, row, upstreamNodes)
-                      : (
-                        <input
-                          aria-label="Right variable or value"
-                          value={row.expression}
-                          placeholder={`Enter ${variableType === 'unknown' ? 'value' : variableType} or select variable`}
-                          onChange={(event) => updateCondition(branch, row.id, 'expression', event.target.value)}
-                        />
-                      )}
-                    <button
-                      title="Choose right value source"
-                      onClick={() => setConditionValuePicker((current) => (
-                        current?.branch === branch && current?.rowId === row.id ? null : { branch, rowId: row.id }
-                      ))}
-                    >
-                      ◇
-                    </button>
-                    {conditionValuePicker?.branch === branch && conditionValuePicker?.rowId === row.id && (
-                      <div className="condition-reference-picker">
-                  <strong>Right value source</strong>
-                  <div className="condition-source-modes">
-                    <button
-                      onClick={() => {
-                        updateCondition(branch, row.id, 'rightMode', 'value')
-                        setConditionValuePicker(null)
-                      }}
-                    ><span>Direct value</span><code>Type</code></button>
-                    <button
-                      onClick={() => {
-                        updateCondition(branch, row.id, 'rightMode', 'expression')
-                        if (!row.expressionParts) updateCondition(branch, row.id, 'expressionParts', [])
-                        setConditionValuePicker(null)
-                      }}
-                    ><span>Expression</span><code>ƒx</code></button>
-                  </div>
-                  <small>Feature</small>
-                  {featureVariables.map((feature) => (
-                    <button
-                      key={feature.name}
-                      onClick={() => {
-                        updateCondition(branch, row.id, 'rightMode', 'value')
-                        updateCondition(branch, row.id, 'expression', `Feature · ${feature.name}`)
-                        setConditionValuePicker(null)
-                      }}
-                    >
-                      <span>{feature.name}</span><code>{feature.type}</code>
-                    </button>
-                  ))}
-                  <small>Custom</small>
-                  {customConditionVariables.map((variable) => (
-                    <button
-                      key={variable.name}
-                      onClick={() => {
-                        updateCondition(branch, row.id, 'rightMode', 'value')
-                        updateCondition(branch, row.id, 'expression', `Custom · ${variable.name}`)
-                        setConditionValuePicker(null)
-                      }}
-                    >
-                      <span>{variable.name}</span><code>{variable.type}</code>
-                    </button>
-                  ))}
-                  {upstreamNodes.map((node) => (
-                    <div key={node.id}>
-                      <small>{node.label}</small>
-                      {(node.outputs || []).map((output) => (
-                        <button
-                          key={output}
-                          onClick={() => {
-                            updateCondition(branch, row.id, 'rightMode', 'value')
-                            updateCondition(branch, row.id, 'expression', `${node.label} · ${output}`)
-                            setConditionValuePicker(null)
-                          }}
-                        >
-                          <span>{output}</span><code>auto</code>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+          <div className="condition-row full-expression-mode">
+            <div className="condition-full-expression">
+              <div><strong>Expression</strong></div>
+              <input
+                autoFocus={rowIndex === 0 && !expressionValue}
+                aria-label="Condition expression"
+                value={expressionValue}
+                placeholder="Expression"
+                onChange={(event) => updateCondition(branch, row.id, 'fullExpression', event.target.value)}
+              />
+            </div>
             <button
               aria-label={`Delete ${branch} condition ${rowIndex + 1}`}
               disabled={conditionRows[branch].length === 1}
