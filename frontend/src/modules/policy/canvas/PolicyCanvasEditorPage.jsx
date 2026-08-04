@@ -1,229 +1,169 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import './PolicyCanvasEditorPage.css'
 
-const policyDecisions = [
-  {
-    id: 'credit-eligibility',
-    name: 'credit_eligibility_decision',
-    description: 'Validate customer eligibility and base risk rules',
-    status: 'Online',
-    inputs: ['age', 'monthly_income', 'credit_report_score'],
-    outputs: ['approved', 'customer_segment', 'risk_score'],
-    x: 350,
-    y: 310,
-  },
-  {
-    id: 'limit-pricing',
-    name: 'limit_pricing_decision',
-    description: 'Calculate credit limit, interest rate and repayment term',
-    status: 'Online',
-    inputs: ['monthly_income', 'customer_segment', 'risk_score'],
-    outputs: ['credit_limit', 'interest_rate', 'loan_term'],
-    x: 690,
-    y: 310,
-  },
-  {
-    id: 'anti-fraud',
-    name: 'anti_fraud_decision',
-    description: 'Fraud screening before the policy returns its result',
-    status: 'Draft',
-    inputs: ['shop_risk_level', 'user_id', 'shop_id'],
-    outputs: ['fraud_passed'],
-    x: 1030,
-    y: 310,
-  },
+const customInputs = [
+  ['personSignId', 'Personal identity token'],
+  ['buyerAdminSeq', 'Buyer ID'],
+  ['credit_user_id', 'Credit user ID'],
+  ['cpf', 'CPF number'],
+  ['name', 'Customer name'],
+  ['ipAddress', 'Client IP address'],
+  ['sessionId', 'Session ID'],
+  ['creditGrantNo', 'Credit grant number'],
+  ['nationality', 'Nationality'],
 ]
 
-const editorVersions = ['V1.0.4 · Draft', 'V1.0.3 · Active', 'V1.0.2 · Offline', 'V1.0.1 · Archived']
+const featureInputs = [
+  ['creditRequestDate', 'Credit request time'],
+  ['instanceId', 'Application instance ID'],
+  ['rawText', 'Original request payload'],
+  ['creditAccessToken', 'Credit access token'],
+  ['callbackSystem', 'Callback system'],
+  ['monthly_income', 'Monthly income'],
+  ['credit_report_score', 'Credit report score'],
+]
+
+const decisionOutputs = ['approved', 'customer_segment', 'risk_score', 'reject_reason']
+
+function ParameterRows({ rows }) {
+  return (
+    <div className="policy-mapping-list">
+      {rows.map(([name, description]) => (
+        <div className="policy-mapping-row" key={name}>
+          <span><strong>{name}</strong><small>{description}</small></span>
+          <select defaultValue=""><option value="" disabled>Select</option><option>Policy input · user_id</option><option>Policy input · shop_id</option><option>Upstream output</option></select>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function PolicyCanvasEditorPage() {
   const { id = '1' } = useParams()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const canvasRef = useRef(null)
-  const dragRef = useRef(null)
-  const [nodes, setNodes] = useState(policyDecisions)
-  const [selectedNodeId, setSelectedNodeId] = useState(policyDecisions[0].id)
+  const [searchParams] = useSearchParams()
+  const activeVersion = searchParams.get('version') || 'V1.0.0'
+  const [selectedNode, setSelectedNode] = useState('')
+  const [drawer, setDrawer] = useState('')
   const [zoom, setZoom] = useState(1)
-  const [showLibrary, setShowLibrary] = useState(false)
-  const requestedVersion = searchParams.get('version') || 'V1.0.3'
-  const [activeVersion, setActiveVersion] = useState(requestedVersion)
+  const [showSearch, setShowSearch] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
-  const selectedNode = useMemo(
-    () => nodes.find((node) => node.id === selectedNodeId),
-    [nodes, selectedNodeId],
-  )
+  const drawerTitle = useMemo(() => {
+    if (drawer === 'history') return 'History'
+    if (drawer === 'parameters') return 'Policy parameter management'
+    if (selectedNode === 'decision') return 'app_credit_new_customer_decision'
+    if (selectedNode === 'ab-test') return 'A/B Testing 1'
+    return ''
+  }, [drawer, selectedNode])
 
-  const changeVersion = (value) => {
-    const version = value.split(' · ')[0]
-    setActiveVersion(version)
-    setSearchParams({ version }, { replace: true })
+  const openNode = (node) => {
+    setDrawer('node')
+    setSelectedNode(node)
   }
 
-  const startDrag = (event, nodeId) => {
-    event.stopPropagation()
-    const node = nodes.find((item) => item.id === nodeId)
-    dragRef.current = {
-      nodeId,
-      startX: event.clientX,
-      startY: event.clientY,
-      nodeX: node.x,
-      nodeY: node.y,
-    }
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-    setSelectedNodeId(nodeId)
+  const closeDrawer = () => {
+    setDrawer('')
+    setSelectedNode('')
   }
-
-  const moveNode = (event) => {
-    if (!dragRef.current) return
-    const drag = dragRef.current
-    const nextX = drag.nodeX + (event.clientX - drag.startX) / zoom
-    const nextY = drag.nodeY + (event.clientY - drag.startY) / zoom
-    setNodes((current) => current.map((node) => (
-      node.id === drag.nodeId
-        ? { ...node, x: Math.max(240, nextX), y: Math.max(120, nextY) }
-        : node
-    )))
-  }
-
-  const stopDrag = () => {
-    dragRef.current = null
-  }
-
-  const fitCanvas = () => setZoom(0.82)
-  const zoomTo = (value) => setZoom(Math.min(1.5, Math.max(0.55, value)))
 
   return (
-    <div className="policy-editor">
-      <header className="policy-editor-topbar">
-        <button className="policy-editor-close" onClick={() => navigate(`/policy/${id}?tab=canvas&version=${activeVersion}`)} aria-label="Close Policy Canvas">×</button>
-        <div className="policy-editor-title">
-          <strong>kwai_disburse_policy</strong>
-          <span>{activeVersion} · Autosaved just now</span>
+    <div className="policy-flow-editor">
+      <aside className="policy-flow-library">
+        <div className="policy-flow-side-head">
+          <button onClick={() => navigate(`/policy/${id}?tab=canvas`)} aria-label="Close">×</button>
+          <button aria-label="Collapse sidebar">◫</button>
         </div>
-        <span className="policy-editor-draft">● Unsubmitted changes</span>
-        <div className="policy-editor-top-actions">
-          <select aria-label="Policy Canvas version" value={editorVersions.find((item) => item.startsWith(activeVersion)) || editorVersions[1]} onChange={(event) => changeVersion(event.target.value)}>
-            {editorVersions.map((version) => <option key={version}>{version}</option>)}
-          </select>
-          <button onClick={() => changeVersion('V1.0.4 · Draft')}>＋ New Version</button>
-          <button className="publish-policy">Publish</button>
-        </div>
-      </header>
-
-      <aside className="policy-editor-library">
-        <div className="policy-editor-library-title"><strong>Policy Nodes</strong><span>⌕</span></div>
-        <button className="policy-library-node"><span>▤</span><div><strong>Decision</strong><small>Reference a Decision component</small></div></button>
-        <button className="policy-library-node"><span>⇥</span><div><strong>Output</strong><small>Return the final policy result</small></div></button>
-        <div className="policy-library-help">
-          <strong>Canvas tips</strong>
-          <span>Scroll to zoom</span>
-          <span>Drag nodes to arrange</span>
-          <span>Click a node to inspect</span>
-        </div>
+        <div className="policy-flow-meta"><strong>kwai_disburse_policy</strong><span>{activeVersion}</span></div>
+        <div className="policy-flow-library-title"><strong>Node</strong><button onClick={() => setShowSearch((value) => !value)}>⌕</button></div>
+        {showSearch && <input className="policy-flow-search" autoFocus placeholder="Search node" />}
+        <button className="policy-flow-library-item branch"><i>♧</i><span>Branch</span></button>
+        <button className="policy-flow-library-item decision"><i>♧</i><span>Decision</span></button>
+        <button className="policy-flow-library-item test"><i>⌘</i><span>A/B Test</span></button>
       </aside>
 
-      <main className="policy-editor-stage">
-        <div
-          ref={canvasRef}
-          className="policy-editor-canvas"
-          onPointerMove={moveNode}
-          onPointerUp={stopDrag}
-          onPointerCancel={stopDrag}
-          onWheel={(event) => {
-            event.preventDefault()
-            zoomTo(zoom + (event.deltaY < 0 ? 0.08 : -0.08))
-          }}
-          onClick={() => setSelectedNodeId('')}
-        >
-          <div className="policy-editor-transform" style={{ transform: `scale(${zoom})` }}>
-            <svg className="policy-editor-edges" width="1500" height="760" aria-hidden="true">
-              <path d={`M 230 355 C 275 355, 300 355, ${nodes[0].x} 355`} />
-              <path d={`M ${nodes[0].x + 260} ${nodes[0].y + 45} C ${nodes[0].x + 300} ${nodes[0].y + 45}, ${nodes[1].x - 40} ${nodes[1].y + 45}, ${nodes[1].x} ${nodes[1].y + 45}`} />
-              <path d={`M ${nodes[1].x + 260} ${nodes[1].y + 45} C ${nodes[1].x + 300} ${nodes[1].y + 45}, ${nodes[2].x - 40} ${nodes[2].y + 45}, ${nodes[2].x} ${nodes[2].y + 45}`} />
-              <path d={`M ${nodes[2].x + 260} ${nodes[2].y + 45} C ${nodes[2].x + 300} ${nodes[2].y + 45}, 1370 355, 1410 355`} />
-            </svg>
-
-            <div className="policy-terminal start" style={{ left: 110, top: 325 }}><strong>Start</strong><span>user_id · shop_id</span></div>
-
-            {nodes.map((node) => (
-              <button
-                key={node.id}
-                className={`policy-editor-node ${selectedNodeId === node.id ? 'selected' : ''}`}
-                style={{ left: node.x, top: node.y }}
-                onPointerDown={(event) => startDrag(event, node.id)}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setSelectedNodeId(node.id)
-                }}
-              >
-                <span className="policy-editor-node-icon">▤</span>
-                <span className="policy-editor-node-copy"><small>Decision</small><strong>{node.name}</strong></span>
-                <span className={`policy-node-status ${node.status.toLowerCase()}`}>{node.status === 'Online' ? '✓' : '!'}</span>
-                <span className="policy-editor-node-io"><b>Input</b>{node.inputs.slice(0, 2).join(' · ')}</span>
-                <span className="policy-editor-node-io"><b>Output</b>{node.outputs.slice(0, 2).join(' · ')}</span>
-              </button>
-            ))}
-
-            <div className="policy-terminal end" style={{ left: 1410, top: 325 }}><strong>End</strong><span>4 outputs</span></div>
-          </div>
+      <main className="policy-flow-stage" onClick={() => !drawer && setSelectedNode('')}>
+        <div className="policy-flow-top-actions">
+          <button title="History" onClick={() => { setDrawer('history'); setSelectedNode('') }}>↶</button>
+          <button title="Policy parameter management" onClick={() => { setDrawer('parameters'); setSelectedNode('') }}>〔T〕</button>
+          <button title="Guide">▣</button>
+          <button className="submit" onClick={() => setSubmitted(true)}>Submit</button>
         </div>
 
-        <div className="policy-editor-toolbar">
-          <button onClick={() => setShowLibrary((current) => !current)}>＋ Add Decision</button>
-          <button onClick={fitCanvas}>Fit</button>
-          <button onClick={() => zoomTo(zoom - 0.1)} aria-label="Zoom out">−</button>
-          <strong>{Math.round(zoom * 100)}%</strong>
-          <button onClick={() => zoomTo(zoom + 0.1)} aria-label="Zoom in">＋</button>
+        <div className="policy-flow-viewport" style={{ transform: `scale(${zoom})` }}>
+          <div className="policy-flow-terminal input"><span>⇩</span><strong>Input</strong></div>
+          <span className="policy-flow-line top" />
+          <button className={`policy-flow-card decision ${selectedNode === 'decision' ? 'selected' : ''}`} onClick={(event) => { event.stopPropagation(); openNode('decision') }}>
+            <i>♧</i><span><small>decision</small><strong>app_credit_new_customer_decision</strong></span><em>V1.0.0</em>
+          </button>
+          <span className="policy-flow-line middle" />
+          <button className={`policy-flow-card test ${selectedNode === 'ab-test' ? 'selected' : ''}`} onClick={(event) => { event.stopPropagation(); openNode('ab-test') }}>
+            <i>⌘</i><span><small>ab_test</small><strong>A/B Testing 1</strong></span>
+          </button>
+          <span className="policy-flow-line bottom" />
+          <div className="policy-flow-terminal output"><span>↪</span><strong>Output</strong></div>
         </div>
 
-        {showLibrary && (
-          <div className="quick-decision-picker">
-            <strong>Add Decision</strong>
-            <input placeholder="Search decisions" />
-            <button>customer_tier_decision<span>Online</span></button>
-            <button>merchant_risk_decision<span>Online</span></button>
-            <button onClick={() => setShowLibrary(false)}>Cancel</button>
-          </div>
-        )}
+        <div className="policy-flow-zoom">
+          <button title="Arrange">⌘</button><button title="Ruler">⌁</button><button onClick={() => setZoom(1)} title="Fit">⛶</button>
+          <button onClick={() => setZoom((value) => Math.max(.6, value - .1))}>−</button><strong>{Math.round(zoom * 100)}%</strong><button onClick={() => setZoom((value) => Math.min(1.5, value + .1))}>＋</button>
+        </div>
       </main>
 
-      <aside className={`policy-node-panel ${selectedNode ? 'open' : ''}`}>
-        {selectedNode ? (
-          <>
-            <div className="policy-node-panel-header">
-              <span>▤</span><div><small>Decision</small><strong>{selectedNode.name}</strong></div>
-              <button onClick={() => setSelectedNodeId('')} aria-label="Close node panel">×</button>
-            </div>
-            <p>{selectedNode.description}</p>
-            <section>
-              <h3>Node Information</h3>
-              <dl>
-                <div><dt>Status</dt><dd>{selectedNode.status}</dd></div>
-                <div><dt>Policy Version</dt><dd>{activeVersion}</dd></div>
-                <div><dt>Execution</dt><dd>Real-time</dd></div>
-              </dl>
-            </section>
-            <section>
-              <h3>Inputs</h3>
-              {selectedNode.inputs.map((item) => <span className="policy-variable" key={item}>{item}<code>feature</code></span>)}
-            </section>
-            <section>
-              <h3>Outputs</h3>
-              {selectedNode.outputs.map((item) => <span className="policy-variable" key={item}>{item}<code>local</code></span>)}
-            </section>
-            <Link
-              className="open-decision-editor"
-              to={`/decision/1/edit?from=policy-canvas&policy=${id}&version=${activeVersion}`}
-            >
-              Open Decision Canvas →
-            </Link>
-          </>
-        ) : (
-          <div className="policy-node-panel-empty"><span>◇</span><strong>Select a Decision node</strong><p>Click a node on the canvas to inspect its inputs, outputs and configuration.</p></div>
+      {drawer && <button className="policy-flow-scrim" onClick={closeDrawer} aria-label="Close panel" />}
+      <aside className={`policy-flow-drawer ${drawer ? 'open' : ''}`}>
+        <header><button onClick={closeDrawer}>×</button><strong>{drawerTitle}</strong>{selectedNode === 'decision' && <><small>V1.0.0</small><Link to={`/decision/1/edit?from=policy-canvas&policy=${id}`}>Go to Decision ↗</Link></>}</header>
+
+        {drawer === 'history' && (
+          <div className="policy-history-panel">
+            <div className="history-event"><i /><strong>04-Aug-2026 14:05:12</strong><p><b>luke.wn</b> updated Decision input mappings</p></div>
+            <div className="history-event"><i /><strong>04-Aug-2026 13:48:26</strong><p><b>luke.wn</b> added A/B Testing 1</p></div>
+            <div className="history-event"><i /><strong>16-Jul-2026 14:50:53</strong><p><b>luke.wn</b> created a new Policy development version</p></div>
+          </div>
+        )}
+
+        {drawer === 'parameters' && (
+          <div className="policy-parameter-panel">
+            <section><div><strong>Input Parameter</strong><button>＋</button></div><p>Name <span>Description</span><span>Type</span></p><div className="policy-empty"><b>⌕</b><strong>No data</strong></div></section>
+            <section><div><strong>Output Parameter</strong><button>＋</button></div><p>Name <span>Description</span><span>Type</span></p><div className="policy-empty"><b>⌕</b><strong>No data</strong></div></section>
+          </div>
+        )}
+
+        {drawer === 'node' && selectedNode === 'decision' && (
+          <div className="policy-node-config">
+            <h3>Decision Input</h3>
+            <h4><span>Custom variable</span><span>Input Parameter Mapping</span></h4>
+            <ParameterRows rows={customInputs} />
+            <h4><span>Feature Input</span><span>Input Parameter Mapping</span></h4>
+            <ParameterRows rows={featureInputs} />
+            <h3>Decision Output</h3>
+            <div className="policy-output-head"><span>Output Variable</span><span>Use as Policy Output</span><span>Assign to Temporary</span></div>
+            {decisionOutputs.map((output) => <div className="policy-output-row" key={output}><strong>{output}</strong><input type="checkbox" /><select defaultValue=""><option value="">Select</option><option>{output}</option></select></div>)}
+          </div>
+        )}
+
+        {drawer === 'node' && selectedNode === 'ab-test' && (
+          <div className="policy-node-config ab-config">
+            <div className="ab-group"><strong><span>Control</span> Group 1</strong><em>Default Traffic 100%</em></div>
+            <select className="ab-decision-select" defaultValue="credit"><option value="credit">bnpl_credit_new_ae_user_decision · V1.0.3</option></select>
+            <h3>Decision Input</h3>
+            <h4><span>Custom variable</span><span>Input Parameter Mapping</span></h4>
+            <ParameterRows rows={customInputs.slice(0, 6)} />
+            <h4><span>Feature Input</span><span>Input Parameter Mapping</span></h4>
+            <ParameterRows rows={featureInputs.slice(0, 5)} />
+            <h3>Decision Output</h3>
+            <div className="policy-output-head"><span>Output Variable</span><span>Use as Policy Output</span><span>Assign to Temporary</span></div>
+            {decisionOutputs.slice(0, 3).map((output) => <div className="policy-output-row" key={output}><strong>{output}</strong><input type="checkbox" /><select defaultValue=""><option value="">Select</option><option>{output}</option></select></div>)}
+          </div>
         )}
       </aside>
+
+      {submitted && (
+        <div className="policy-submit-overlay" onClick={() => setSubmitted(false)}>
+          <div><span /><strong>Validating Policy configuration…</strong><small>Click anywhere to close</small></div>
+        </div>
+      )}
     </div>
   )
 }
