@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import DecisionPage from '../../decision/list/DecisionPage'
 import './PolicyDetailPage.css'
 
 const tabs = [
@@ -485,79 +486,8 @@ function PolicyDetailPage() {
       )}
 
       {activeTab === 'decisions' && (
-        <section className="decision-overview">
-          <div className="panel-heading">
-            <div><h2>Decisions</h2><p>All decision components referenced by this policy</p></div>
-            <label className="inline-search"><span>⌕</span><input placeholder="Search decision" /></label>
-          </div>
-          <div className="decision-cards">
-            {decisions.map((decision) => {
-              const expanded = expandedDecision === decision.id
-              return (
-                <article className={`decision-card ${expanded ? 'expanded' : ''}`} key={decision.id}>
-                  <div className="decision-card-header">
-                    <button
-                      type="button"
-                      className="decision-card-toggle"
-                      aria-expanded={expanded}
-                      onClick={() => {
-                        setExpandedDecision(expanded ? '' : decision.id)
-                        setInspectedDecisionNode('')
-                      }}
-                    >
-                      <span className="decision-caret">{expanded ? '⌄' : '›'}</span>
-                      <span className="decision-symbol">◇</span>
-                      <span className="decision-copy"><strong>{decision.name}</strong><small>{decision.description}</small></span>
-                    </button>
-                    <select
-                      className="decision-version-select"
-                      aria-label={`${decision.name} version`}
-                      value={activeDecisionReferences[decision.id]}
-                      onChange={(event) => updateDecisionReference(decision.id, event.target.value)}
-                    >
-                      {decision.versions.map((version) => <option key={version}>{version}</option>)}
-                    </select>
-                    <span className="decision-node-count">{decision.nodes.length} nodes</span>
-                  </div>
-                  {expanded && (
-                    <div className="decision-expanded">
-                      <div className="decision-node-list-heading">
-                        <div><strong>Nodes</strong><span>{decision.nodes.length} nodes in this version</span></div>
-                        <Link to={`/decision/${decision.id}/edit?version=${activeDecisionReferences[decision.id]}&from=policy&policy=${id}&returnTab=decisions`}>Open full canvas →</Link>
-                      </div>
-                      <div className="decision-node-list">
-                        {decision.nodes.map((node, index) => {
-                          const details = decisionNodeDetails[decision.id][node]
-                          const nodeKey = `${decision.id}:${node}`
-                          const selected = inspectedDecisionNode === nodeKey
-                          return (
-                            <div className={`decision-node-row ${selected ? 'selected' : ''}`} key={node}>
-                              <button type="button" onClick={() => setInspectedDecisionNode(selected ? '' : nodeKey)}>
-                                <span className="decision-node-order">{index + 1}</span>
-                                <span className="decision-node-list-icon">{details.type === 'Start' || details.type === 'End' ? '●' : '▤'}</span>
-                                <span className="decision-node-main"><strong>{node}</strong><small>{details.type}</small></span>
-                                <span className="decision-node-io">{details.inputs}</span>
-                                <span className="decision-node-open">{selected ? '⌃' : '⌄'}</span>
-                              </button>
-                              {selected && (
-                                <div className="decision-node-details">
-                                  <p>{details.description}</p>
-                                  <dl>
-                                    <div><dt>Inputs</dt><dd>{details.inputs}</dd></div>
-                                    <div><dt>Outputs</dt><dd>{details.outputs}</dd></div>
-                                  </dl>
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </article>
-              )
-            })}
-          </div>
+        <section className="policy-decision-management">
+          <DecisionPage embedded />
         </section>
       )}
 

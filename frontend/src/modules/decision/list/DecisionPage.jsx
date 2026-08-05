@@ -26,18 +26,18 @@ const columns = [
 ]
 
 const data = [
-  { id: 1, name: 'test_luke1', createdBy: 'luke.wn', category: 'AE', status: 'Draft', createdAt: 'Jul 15, 2026', lastModified: 'Jul 15, 2026', description: '1' },
-  { id: 2, name: 'overdue_temp_limit_dispos...', createdBy: 'xuyangzhang.zxy', category: 'AE', status: 'Draft', createdAt: 'Jul 15, 2026', lastModified: 'Jul 15, 2026', description: '逾期用户临额失效决策' },
-  { id: 3, name: 'test', createdBy: 'luke.wn', category: 'AE', status: 'Draft', createdAt: 'Jul 15, 2026', lastModified: 'Jul 15, 2026', description: '' },
-  { id: 4, name: 'kwai_credit_decision', createdBy: 'gaochaoxiang.gcx', category: 'AE', status: 'Online', createdAt: 'Jul 7, 2026', lastModified: 'Jul 15, 2026', description: 'kwai授信decision' },
-  { id: 5, name: 'kwai_credit_param_decisoi...', createdBy: 'gaochaoxiang.gcx', category: 'AE', status: 'Online', createdAt: 'Jul 9, 2026', lastModified: 'Jul 14, 2026', description: 'kwai授信decision入参处理' },
-  { id: 6, name: 'bnpl_expenditure_intercept...', createdBy: 'lishutian.lst', category: 'AE', status: 'Online', createdAt: 'Jul 3, 2026', lastModified: 'Jul 14, 2026', description: '实时支用拦截' },
-  { id: 7, name: 'bnpl_credit_bvs_rule_decisi...', createdBy: 'gaochaoxiang.gcx', category: 'AE', status: 'Online', createdAt: 'Dec 8, 2025', lastModified: 'Jul 13, 2026', description: 'bnpl授信-bvs数据源规则decision' },
-  { id: 8, name: 'bnpl_non_active_user_deci...', createdBy: 'hushoufu.hsf', category: 'AE', status: 'Online', createdAt: 'Jul 3, 2026', lastModified: 'Jul 13, 2026', description: '获取非年活标签decision' },
-  { id: 9, name: 'bnpl_default_param_decisi...', createdBy: 'hushoufu.hsf', category: 'AE', status: 'Online', createdAt: 'Jul 3, 2026', lastModified: 'Jul 13, 2026', description: '一口价默认参数赋值decision' },
+  { id: 1, name: 'white_roster_decision', createdBy: 'gongzhi.gong', category: 'AE', status: 'Online', createdAt: 'Oct 26, 2025', lastModified: 'Aug 4, 2026', description: '白名单测试用户' },
+  { id: 2, name: 'bnpl_credit_active_user_decision', createdBy: 'hushoufu.hsf', category: 'AE', status: 'Online', createdAt: 'Jul 17, 2026', lastModified: 'Aug 4, 2026', description: 'bnpl年活用户策略包' },
+  { id: 3, name: 'app_credit_new_customer_decision', createdBy: 'gaochaoxiang.gcx', category: 'AE', status: 'Draft', createdAt: 'Jul 28, 2026', lastModified: 'Aug 4, 2026', description: 'batter app新客decision' },
+  { id: 4, name: 'bnpl_credit_not_active_user_decision', createdBy: 'hushoufu.hsf', category: 'AE', status: 'Online', createdAt: 'Jul 19, 2026', lastModified: 'Aug 3, 2026', description: 'bnpl非年活用户策略包' },
+  { id: 5, name: 'bnpl_credit_new_ae_user_decision', createdBy: 'hushoufu.hsf', category: 'AE', status: 'Online', createdAt: 'Jul 19, 2026', lastModified: 'Aug 3, 2026', description: 'new to AE用户策略包' },
+  { id: 6, name: 'overdue_temp_limit_disposal_decision', createdBy: 'xuyangzhang.zxy', category: 'AE', status: 'Online', createdAt: 'Jul 15, 2026', lastModified: 'Jul 31, 2026', description: '逾期用户临额失效决策' },
+  { id: 7, name: 'app_credit_white_list_decision', createdBy: 'gaochaoxiang.gcx', category: 'AE', status: 'Online', createdAt: 'Jul 16, 2026', lastModified: 'Jul 31, 2026', description: 'batter_app授信全通(全部通过)decision' },
+  { id: 8, name: 'kwai_credit_decision', createdBy: 'gaochaoxiang.gcx', category: 'AE', status: 'Online', createdAt: 'Jul 7, 2026', lastModified: 'Jul 30, 2026', description: 'kwai授信decision' },
+  { id: 9, name: 'app_credit_param_decision', createdBy: 'gaochaoxiang.gcx', category: 'AE', status: 'Draft', createdAt: 'Jul 29, 2026', lastModified: 'Jul 29, 2026', description: 'batter app 解析入参decision' },
 ]
 
-function DecisionPage() {
+function DecisionPage({ embedded = false }) {
   const [activeTab, setActiveTab] = useState('realtime')
   const [searchValue, setSearchValue] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -51,15 +51,36 @@ function DecisionPage() {
   })
 
   return (
-    <div className="decision-page">
-      <PageHeader
-        title="Decision"
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        actionLabel="Create Decision"
-        onAction={() => setShowCreate(true)}
-      />
+    <div className={`decision-page ${embedded ? 'embedded' : ''}`}>
+      {embedded ? (
+        <div className="embedded-decision-toolbar">
+          <div className="tabs" role="tablist" aria-label="Decision type">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                className={`tab ${activeTab === tab.key ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                <span className="tab-icon">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <button className="create-btn" onClick={() => setShowCreate(true)}>Create Decision</button>
+        </div>
+      ) : (
+        <PageHeader
+          title="Decision"
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          actionLabel="Create Decision"
+          onAction={() => setShowCreate(true)}
+        />
+      )}
 
       <div className="filter-bar">
         <button className="filter-btn">
