@@ -1,6 +1,53 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import './PolicyOverviewPage.css'
+import '../detail/PolicyDetailPage.css'
+
+const policyTabs = [
+  { key: 'details', label: 'Details' },
+  { key: 'parameters', label: 'Parameters' },
+  { key: 'records', label: 'Records' },
+  { key: 'traffic', label: 'Traffic' },
+  { key: 'monitoring', label: 'Monitoring' },
+]
+
+const parameters = {
+  customer: [
+    { name: 'user_id', type: 'string', source: 'Policy request', usedIn: 'User and Credit Report features' },
+    { name: 'shop_id', type: 'string', source: 'Policy request', usedIn: 'Shop features' },
+  ],
+  feature: [
+    { name: 'age', type: 'number', component: 'User', key: 'user_id', usedIn: 'Eligibility Rule' },
+    { name: 'monthly_income', type: 'number', component: 'User', key: 'user_id', usedIn: 'Risk Score, Limit Table' },
+    { name: 'credit_report_score', type: 'number', component: 'Credit Report', key: 'user_id', usedIn: 'Risk Score' },
+    { name: 'shop_risk_level', type: 'string', component: 'Shop', key: 'shop_id', usedIn: 'Fraud Score' },
+  ],
+  output: [
+    { name: 'approved', type: 'boolean', source: 'Eligibility Rule.approved', returnedBy: 'Policy End' },
+    { name: 'credit_limit', type: 'number', source: 'Pricing Rule.final_limit', returnedBy: 'Policy End' },
+    { name: 'interest_rate', type: 'number', source: 'Pricing Rule.rate', returnedBy: 'Policy End' },
+    { name: 'loan_term', type: 'number', source: 'Pricing Rule.term', returnedBy: 'Policy End' },
+  ],
+}
+
+const policyRecords = [
+  { actor: 'luke.wn', action: 'Created', target: 'Policy version V1.0.4', detail: 'Copied from V1.0.3', time: 'Jul 27, 2026 11:26' },
+  { actor: 'gaochaoxiang.gcx', action: 'Added', target: 'anti_fraud_decision', detail: 'Added Decision node to Policy Canvas', time: 'Jul 27, 2026 10:18' },
+  { actor: 'luke.wn', action: 'Updated', target: 'credit_eligibility_decision', detail: 'Changed input binding: credit_report_score', time: 'Jul 27, 2026 09:47' },
+  { actor: 'risk.admin', action: 'Deleted', target: 'legacy_limit_decision', detail: 'Removed Decision node from V1.0.3 draft', time: 'Jul 26, 2026 17:32' },
+  { actor: 'luke.wn', action: 'Published', target: 'Policy version V1.0.3', detail: 'Promoted version to Active', time: 'Jul 25, 2026 16:09' },
+]
+
+const policyVersionDiffs = {
+  'V1.0.4': { base: 'V1.0.3', status: 'Draft', changes: [
+    { type: 'added', scope: 'Decision', target: 'anti_fraud_decision', detail: 'Added to the Policy Canvas', after: 'Decision V0.9.0' },
+    { type: 'updated', scope: 'Decision version', target: 'credit_eligibility_decision', detail: 'Changed the referenced Decision version', before: 'V2.0.3', after: 'V2.1.0' },
+  ] },
+  'V1.0.3': { base: 'V1.0.2', status: 'Active', changes: [
+    { type: 'added', scope: 'Decision', target: 'limit_pricing_decision', detail: 'Added pricing calculation to the Policy Canvas', after: 'Decision V1.4.1' },
+    { type: 'updated', scope: 'Output', target: 'interest_rate', detail: 'Changed the output source', before: 'base_rate', after: 'Pricing Rule.rate' },
+  ] },
+}
 
 const policyProfiles = {
   '1': {
@@ -31,14 +78,24 @@ function PolicyOverviewPage() {
   const { id = '1' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab')
-  const [activeTab, setActiveTab] = useState(['details', 'traffic', 'monitoring'].includes(requestedTab) ? requestedTab : 'details')
+  const [activeTab, setActiveTab] = useState(policyTabs.some((tab) => tab.key === requestedTab) ? requestedTab : 'details')
   const [versionView, setVersionView] = useState('online')
   const [versions, setVersions] = useState(initialVersions)
   const [showMore, setShowMore] = useState(true)
   const [trafficEnvironment, setTrafficEnvironment] = useState('production')
+  const [parameterType, setParameterType] = useState('customer')
+  const [parameterSearch, setParameterSearch] = useState('')
+  const [recordsView, setRecordsView] = useState('records')
+  const [diffVersion, setDiffVersion] = useState('V1.0.4')
   const profile = policyProfiles[id] || policyProfiles['1']
 
   const visibleVersions = useMemo(() => versions.filter((item) => versionView === 'online' ? item.online : !item.online), [versionView, versions])
+  const visibleParameters = useMemo(() => {
+    const query = parameterSearch.trim().toLowerCase()
+    if (!query) return parameters[parameterType]
+    return parameters[parameterType].filter((item) => Object.values(item).some((value) => String(value).toLowerCase().includes(query)))
+  }, [parameterSearch, parameterType])
+  const activeVersionDiff = policyVersionDiffs[diffVersion]
 
   const changeTab = (tab) => {
     setActiveTab(tab)
@@ -63,9 +120,9 @@ function PolicyOverviewPage() {
       </div>
 
       <div className="policy-overview-tabs" role="tablist">
-        {['details', 'traffic', 'monitoring'].map((tab) => (
-          <button key={tab} role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? 'active' : ''} onClick={() => changeTab(tab)}>
-            {tab[0].toUpperCase() + tab.slice(1)}
+        {policyTabs.map((tab) => (
+          <button key={tab.key} role="tab" aria-selected={activeTab === tab.key} className={activeTab === tab.key ? 'active' : ''} onClick={() => changeTab(tab.key)}>
+            {tab.label}
           </button>
         ))}
       </div>
@@ -117,6 +174,45 @@ function PolicyOverviewPage() {
             </div>
           </section>
         </>
+      )}
+
+      {activeTab === 'parameters' && (
+        <section className="parameter-panel">
+          <div className="panel-heading">
+            <div><h2>Parameters</h2><p>Variables available in this policy. Inputs are resolved through each feature’s component key.</p></div>
+            <label className="inline-search"><span>⌕</span><input value={parameterSearch} onChange={(event) => setParameterSearch(event.target.value)} placeholder="Search parameter" /></label>
+          </div>
+          <div className="parameter-tabs">
+            {[
+              { key: 'customer', label: 'Customer', count: parameters.customer.length },
+              { key: 'feature', label: 'Feature', count: parameters.feature.length },
+              { key: 'output', label: 'Output', count: parameters.output.length },
+            ].map((item) => <button key={item.key} className={parameterType === item.key ? 'active' : ''} onClick={() => setParameterType(item.key)}>{item.label}<span>{item.count}</span></button>)}
+          </div>
+          <div className="parameter-table-wrap">
+            <table className="parameter-table">
+              <thead><tr><th>Name</th><th>Type</th>{parameterType === 'feature' ? <><th>Component</th><th>Lookup Key</th></> : <th>Source</th>}<th>{parameterType === 'output' ? 'Returned By' : parameterType === 'customer' ? 'Resolves' : 'Used In'}</th></tr></thead>
+              <tbody>{visibleParameters.map((item) => <tr key={item.name}><td><span className={`parameter-dot ${parameterType}`} />{item.name}</td><td><code>{item.type}</code></td>{parameterType === 'feature' ? <><td>{item.component}</td><td><code>{item.key}</code></td></> : <td>{item.source}</td>}<td>{parameterType === 'output' ? item.returnedBy : item.usedIn || item.source}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'records' && (
+        <section className="policy-workspace-panel">
+          <div className="panel-heading">
+            <div><h2>{recordsView === 'records' ? 'Records' : 'Version Diff'}</h2><p>{recordsView === 'records' ? 'Complete audit history of additions, updates, deletions and version operations.' : 'Compare a Policy version with the base version it was created from.'}</p></div>
+            {recordsView === 'records' && <div className="records-actions"><button>Filter</button><button>Export</button></div>}
+          </div>
+          <div className="records-subtabs" role="tablist"><button className={recordsView === 'records' ? 'active' : ''} onClick={() => setRecordsView('records')}>Activity Records</button><button className={recordsView === 'diff' ? 'active' : ''} onClick={() => setRecordsView('diff')}>Version Diff</button></div>
+          {recordsView === 'records' ? <div className="records-timeline">{policyRecords.map((record, index) => <article className="record-item" key={`${record.time}-${record.target}`}><div className={`record-icon ${record.action.toLowerCase()}`}>{record.action === 'Deleted' ? '−' : record.action === 'Updated' ? '↻' : '+'}</div><div className="record-line" /><div className="record-copy"><div><strong>{record.actor}</strong><span className={`record-action ${record.action.toLowerCase()}`}>{record.action}</span><b>{record.target}</b></div><p>{record.detail}</p><time>{record.time}</time></div>{index === 0 && <span className="latest-record">Latest</span>}</article>)}</div> : (
+            <div className="version-diff">
+              <div className="version-diff-toolbar"><label><span>Version to compare</span><select value={diffVersion} onChange={(event) => setDiffVersion(event.target.value)}>{Object.keys(policyVersionDiffs).map((version) => <option key={version}>{version}</option>)}</select></label><span className="diff-direction">compared with</span><label><span>Base version</span><select disabled><option>{activeVersionDiff.base}</option></select></label><span className={`diff-status ${activeVersionDiff.status.toLowerCase()}`}>{activeVersionDiff.status}</span></div>
+              <div className="diff-summary"><div><strong>{activeVersionDiff.changes.length}</strong><span>Total changes</span></div><div className="added"><strong>{activeVersionDiff.changes.filter((item) => item.type === 'added').length}</strong><span>Added</span></div><div className="updated"><strong>{activeVersionDiff.changes.filter((item) => item.type === 'updated').length}</strong><span>Updated</span></div></div>
+              <div className="diff-change-list"><div className="diff-list-header"><span>Change</span><span>Object</span><span>Details</span><span>Before</span><span>After</span></div>{activeVersionDiff.changes.map((change) => <article className="diff-change-row" key={`${diffVersion}-${change.target}`}><span className={`diff-change-type ${change.type}`}>{change.type === 'added' ? '+ Added' : '↻ Updated'}</span><div><small>{change.scope}</small><strong>{change.target}</strong></div><p>{change.detail}</p><code>{change.before || '—'}</code><code>{change.after || '—'}</code></article>)}</div>
+            </div>
+          )}
+        </section>
       )}
 
       {activeTab === 'traffic' && (
