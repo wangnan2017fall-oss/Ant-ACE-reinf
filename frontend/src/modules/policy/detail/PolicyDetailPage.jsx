@@ -362,7 +362,7 @@ function PolicyDetailPage() {
       <div className="policy-breadcrumb"><Link to="/policy">Policy</Link><span>/</span><span>{policyName}</span></div>
 
       <div className="policy-title-row">
-        <Link className="policy-back" to="/policy" aria-label="Back to Policy">‹</Link>
+        <Link className="policy-back" to={`/policy/${id}`} aria-label="Back to Policy overview">‹</Link>
         <h1>{policyName}</h1>
         <span className={`policy-online ${policyStatus.toLowerCase()}`}><i />{policyStatus}</span>
         <div className="policy-version-actions">

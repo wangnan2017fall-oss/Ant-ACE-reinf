@@ -15,6 +15,7 @@ import DecisionEditorPage from '../modules/decision/canvas/DecisionEditorPage'
 import DecisionDetailPage from '../modules/decision/detail/DecisionDetailPage'
 import DecisionPage from '../modules/decision/list/DecisionPage'
 import PolicyDetailPage from '../modules/policy/detail/PolicyDetailPage'
+import PolicyOverviewPage from '../modules/policy/overview/PolicyOverviewPage'
 import PolicyCanvasEditorPage from '../modules/policy/canvas/PolicyCanvasEditorPage'
 import PolicyPage from '../modules/policy/list/PolicyPage'
 import TicketPage from '../modules/ticket/TicketPage'
@@ -38,7 +39,8 @@ function AppRoutes() {
       <Route path="/feature/:id" element={<FeatureDetailPage />} />
       <Route path="/policy" element={<PolicyPage />} />
       <Route path="/policy/:id/edit" element={<PolicyCanvasEditorPage />} />
-      <Route path="/policy/:id" element={<PolicyDetailPage />} />
+      <Route path="/policy/:id/canvas" element={<PolicyDetailPage />} />
+      <Route path="/policy/:id" element={<PolicyOverviewPage />} />
       <Route path="/testing" element={<TestingPage />} />
       <Route path="/case-tracker" element={<CaseTrackerPage />} />
       <Route path="/credit-adjustment" element={<CreditAdjustmentPage />} />

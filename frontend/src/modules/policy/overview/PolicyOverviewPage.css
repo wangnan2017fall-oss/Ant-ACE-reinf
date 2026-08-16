@@ -1,0 +1,133 @@
+.policy-overview-page {
+  min-width: 0;
+  color: #1f293b;
+  font-family: 'Avenir Next', Avenir, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.policy-overview-breadcrumb {
+  display: flex;
+  gap: 12px;
+  margin: 4px 0 25px;
+  color: #9aa5b8;
+  font-size: 12px;
+}
+
+.policy-overview-breadcrumb a { color: inherit; text-decoration: none; }
+
+.policy-overview-title {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 14px;
+}
+
+.policy-overview-title > a { color: #273246; font-size: 31px; font-weight: 300; text-decoration: none; }
+.policy-overview-title h1 { margin: 0; font-size: 25px; letter-spacing: -0.4px; }
+.policy-overview-title > button { margin-left: auto; padding: 12px 20px; border: 0; border-radius: 10px; background: #7c3aed; color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+.policy-overview-status,
+.policy-version-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #8ee5b2;
+  border-radius: 999px;
+  color: #12874e;
+  font-size: 12px;
+}
+
+.policy-overview-status { padding: 5px 11px; }
+.policy-overview-status i,
+.policy-version-status i { width: 7px; height: 7px; border-radius: 50%; background: #21b86c; }
+
+.policy-overview-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 26px;
+  border-bottom: 1px solid #dfe4eb;
+}
+
+.policy-overview-tabs button,
+.version-state-tabs button {
+  position: relative;
+  padding: 13px 14px;
+  border: 0;
+  background: transparent;
+  color: #4f5b6e;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.policy-overview-tabs button.active,
+.version-state-tabs button.active { color: #7c3aed; }
+.policy-overview-tabs button.active::after,
+.version-state-tabs button.active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: #7c3aed; content: ''; }
+
+.policy-overview-card {
+  margin-bottom: 26px;
+  border: 1px solid #e0e5ec;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.basic-information-card { padding: 28px 30px 25px; }
+.policy-overview-card h2 { margin: 0; color: #20293a; font-size: 16px; }
+.basic-information-card dl { display: grid; max-width: 1120px; gap: 19px; margin: 26px 0 0; }
+.basic-information-card dl > div { display: grid; grid-template-columns: 135px minmax(0, 1fr); align-items: center; }
+.basic-information-card dt { color: #5b677a; font-size: 12px; }
+.basic-information-card dd { display: flex; align-items: center; gap: 9px; margin: 0; color: #242d3f; font-size: 12px; }
+.basic-information-card dd button { border: 0; background: transparent; color: #9aa5b5; cursor: pointer; }
+.basic-information-card select { min-width: 105px; padding: 9px 14px; border: 1px solid #dfe4eb; border-radius: 9px; background: #fff; font: inherit; }
+.policy-information-toggle { margin-top: 22px; padding: 0; border: 0; background: transparent; color: #7c3aed; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; word-spacing: 8px; }
+
+.versions-card { padding-top: 28px; }
+.versions-card > h2 { padding: 0 30px; }
+.version-state-tabs { display: flex; gap: 2px; margin: 17px 30px 0; border-bottom: 1px solid #e0e5ec; }
+.policy-version-table-wrap { padding: 0 30px 22px; overflow-x: auto; }
+.policy-version-table { width: 100%; min-width: 940px; border-collapse: collapse; }
+.policy-version-table th { padding: 15px 13px; border-bottom: 1px solid #dfe4eb; background: #f7f8fa; color: #596579; font-size: 11px; font-weight: 600; text-align: left; }
+.policy-version-table td { height: 66px; padding: 0 13px; border-bottom: 1px solid #e3e7ed; color: #263044; font-size: 11px; }
+.policy-version-pill { display: inline-flex; padding: 5px 9px; border-radius: 999px; background: #f4f5f7; font-weight: 700; }
+.policy-version-user { display: inline-flex; align-items: center; gap: 9px; }
+.policy-version-user i { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: #e8e6ff; color: #4c3d87; font-style: normal; font-weight: 700; }
+.policy-version-status { padding: 4px 9px; background: #edfff4; }
+.policy-version-status.offline { border-color: #d9dee6; background: #f6f7f9; color: #6d7788; }
+.policy-version-status.offline i { background: #939baa; }
+.policy-version-status.draft { border-color: #bcd7ff; background: #edf5ff; color: #3475c5; }
+.policy-version-status.draft i { background: #4e97ef; }
+.policy-version-actions { display: flex; align-items: center; gap: 18px; }
+.policy-version-actions a,
+.policy-version-actions button { border: 0; background: transparent; color: #7c3aed; font: inherit; font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.policy-version-actions .more { margin-left: auto; color: #576276; letter-spacing: 2px; }
+
+.overview-traffic-card { min-height: 480px; padding: 28px 30px; }
+.overview-traffic-heading { display: flex; align-items: center; justify-content: space-between; }
+.overview-traffic-heading > div { display: flex; gap: 10px; }
+.overview-traffic-heading button { padding: 10px 15px; border: 1px solid #dce1e8; border-radius: 9px; background: #fff; color: #20293a; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.overview-traffic-heading button:last-child { border-color: #bd9aff; color: #7c3aed; }
+.overview-environment-tabs { display: flex; gap: 6px; margin-top: 18px; border-bottom: 1px solid #e0e5ec; }
+.overview-environment-tabs button { padding: 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #536074; font: inherit; font-weight: 700; cursor: pointer; }
+.overview-environment-tabs button.active { border-bottom-color: #7c3aed; color: #7c3aed; }
+.overview-traffic-table { width: 100%; border-collapse: collapse; }
+.overview-traffic-table th { padding: 15px 13px; background: #f7f8fa; color: #627084; font-size: 11px; font-weight: 600; text-align: left; }
+.overview-traffic-table td { height: 62px; padding: 0 13px; border-bottom: 1px solid #e3e7ed; font-size: 12px; }
+.overview-traffic-table td span { padding: 5px 9px; border-radius: 999px; background: #f5f6f8; font-weight: 700; }
+
+.overview-monitor-card { padding: 0 18px 18px; }
+.overview-monitor-toolbar { display: flex; justify-content: flex-end; gap: 16px; padding: 15px 0; color: #596579; font-size: 12px; }
+.overview-monitor-toolbar button { border: 0; border-radius: 7px; background: #f2f3f6; padding: 7px 11px; }
+.overview-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.overview-metrics > div { display: grid; min-height: 110px; align-content: center; gap: 16px; padding: 20px; border-radius: 13px; background: #f6f7f9; }
+.overview-metrics .blue { background: #dceaff; }.overview-metrics .green { background: #def7d2; }.overview-metrics .violet { background: #ececf8; }
+.overview-metrics span { font-size: 12px; }.overview-metrics strong { font-size: 25px; }
+.overview-monitor-empty { display: grid; min-height: 300px; margin-top: 18px; place-items: center; align-content: center; border: 1px solid #e1e5ec; border-radius: 10px; color: #8993a4; }
+.overview-monitor-empty h3 { position: absolute; align-self: start; justify-self: start; margin: 20px; color: #242d3e; font-size: 14px; }
+.overview-monitor-empty > span { font-size: 30px; }.overview-monitor-empty strong { color: #242d3e; }.overview-monitor-empty p { margin: 6px 0 0; font-size: 11px; }
+
+@media (max-width: 1000px) {
+  .overview-metrics { grid-template-columns: repeat(2, 1fr); }
+  .policy-overview-title > button { padding-inline: 13px; }
+}
