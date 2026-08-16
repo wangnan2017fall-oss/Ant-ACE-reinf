@@ -158,6 +158,18 @@ const initialVersions = [
   { id: 'V1.0.1', status: 'Archived' },
 ]
 
+const initialTrafficConfiguration = {
+  production: [
+    { version: 'V1.0.3', traffic: 70, fallback: '—' },
+    { version: 'V1.0.2', traffic: 30, fallback: '—' },
+    { version: 'V1.0.1', traffic: 0, fallback: '—' },
+  ],
+  'pre-production': [
+    { version: 'V1.0.4', traffic: 100, fallback: 'V1.0.3' },
+    { version: 'V1.0.3', traffic: 0, fallback: '—' },
+  ],
+}
+
 const defaultDecisionReferences = {
   'credit-eligibility': 'V2.1.0',
   'limit-pricing': 'V1.4.2',
@@ -239,6 +251,11 @@ function PolicyDetailPage() {
   const [parameterType, setParameterType] = useState('customer')
   const [parameterSearch, setParameterSearch] = useState('')
   const [dateRange, setDateRange] = useState('Today')
+  const [trafficEnvironment, setTrafficEnvironment] = useState('production')
+  const [trafficConfiguration, setTrafficConfiguration] = useState(initialTrafficConfiguration)
+  const [trafficDraft, setTrafficDraft] = useState(initialTrafficConfiguration.production)
+  const [showTrafficHistory, setShowTrafficHistory] = useState(false)
+  const [showTrafficAdjustment, setShowTrafficAdjustment] = useState(false)
   const requestedVersion = searchParams.get('version') || initialVersions[0].id
   const [versions, setVersions] = useState(() => (
     initialVersions.some((version) => version.id === requestedVersion)
@@ -328,6 +345,16 @@ function PolicyDetailPage() {
         [decisionId]: version,
       },
     }))
+  }
+
+  const openTrafficAdjustment = () => {
+    setTrafficDraft(trafficConfiguration.production.map((item) => ({ ...item })))
+    setShowTrafficAdjustment(true)
+  }
+
+  const saveTrafficAdjustment = () => {
+    setTrafficConfiguration((current) => ({ ...current, production: trafficDraft }))
+    setShowTrafficAdjustment(false)
   }
 
   return (
@@ -579,7 +606,37 @@ function PolicyDetailPage() {
         </section>
       )}
 
-      {(activeTab === 'traffic' || activeTab === 'monitoring') && (
+      {activeTab === 'traffic' && (
+        <section className="traffic-config-panel">
+          <div className="traffic-config-heading">
+            <h2>Traffic Configuration</h2>
+            <div>
+              <button className="traffic-history-button" onClick={() => setShowTrafficHistory(true)}>Adjustment History</button>
+              <button className="traffic-adjust-button" onClick={openTrafficAdjustment}>Adjust Production Traffic</button>
+            </div>
+          </div>
+          <div className="traffic-environment-tabs" role="tablist" aria-label="Traffic environment">
+            <button role="tab" aria-selected={trafficEnvironment === 'production'} className={trafficEnvironment === 'production' ? 'active' : ''} onClick={() => setTrafficEnvironment('production')}>Production</button>
+            <button role="tab" aria-selected={trafficEnvironment === 'pre-production'} className={trafficEnvironment === 'pre-production' ? 'active' : ''} onClick={() => setTrafficEnvironment('pre-production')}>Pre-Production</button>
+          </div>
+          <div className="traffic-table-wrap">
+            <table className="traffic-table">
+              <thead><tr><th>Version No.</th><th>Traffic Configuration</th><th>Fallback Traffic</th></tr></thead>
+              <tbody>
+                {trafficConfiguration[trafficEnvironment].map((item) => (
+                  <tr key={`${trafficEnvironment}-${item.version}`}>
+                    <td><span>{item.version}</span></td>
+                    <td><strong>{item.traffic}%</strong></td>
+                    <td>{item.fallback}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'monitoring' && (
         <section className="monitor-panel">
           <div className="monitor-toolbar">
             <select value={dateRange} onChange={(event) => setDateRange(event.target.value)}>
@@ -594,10 +651,41 @@ function PolicyDetailPage() {
             <div className="violet"><span>Failed</span><strong>0</strong></div>
           </div>
           <div className="empty-monitor">
-            <h3>{activeTab === 'traffic' ? 'Traffic Overview' : 'Request Overview'}</h3>
+            <h3>Request Overview</h3>
             <span>⌕</span><strong>No data available</strong><p>Requests for the selected period will appear here.</p>
           </div>
         </section>
+      )}
+
+      {showTrafficHistory && (
+        <div className="version-modal-backdrop" role="presentation" onMouseDown={() => setShowTrafficHistory(false)}>
+          <section className="version-modal traffic-modal" role="dialog" aria-modal="true" aria-labelledby="traffic-history-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="version-modal-close" onClick={() => setShowTrafficHistory(false)} aria-label="Close adjustment history">×</button>
+            <h2 id="traffic-history-title">Adjustment History</h2>
+            <p>Production traffic changes for this Policy.</p>
+            <div className="traffic-history-list">
+              <article><strong>V1.0.3: 70% · V1.0.2: 30%</strong><span>Adjusted by luke.wn</span><time>Jul 27, 2026 11:26</time></article>
+              <article><strong>V1.0.3: 100%</strong><span>Adjusted by gaochaoxiang.gcx</span><time>Jul 25, 2026 16:09</time></article>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showTrafficAdjustment && (
+        <div className="version-modal-backdrop" role="presentation" onMouseDown={() => setShowTrafficAdjustment(false)}>
+          <section className="version-modal traffic-modal" role="dialog" aria-modal="true" aria-labelledby="traffic-adjust-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="version-modal-close" onClick={() => setShowTrafficAdjustment(false)} aria-label="Close traffic adjustment">×</button>
+            <h2 id="traffic-adjust-title">Adjust Production Traffic</h2>
+            <p>Allocate production traffic across Policy versions. The total must equal 100%.</p>
+            <div className="traffic-adjust-list">
+              {trafficDraft.map((item, index) => (
+                <label key={item.version}><span>{item.version}</span><input type="number" min="0" max="100" value={item.traffic} onChange={(event) => setTrafficDraft((current) => current.map((entry, entryIndex) => entryIndex === index ? { ...entry, traffic: Number(event.target.value) } : entry))} /><em>%</em></label>
+              ))}
+            </div>
+            <div className={`traffic-total ${trafficDraft.reduce((sum, item) => sum + item.traffic, 0) === 100 ? 'valid' : ''}`}><span>Total</span><strong>{trafficDraft.reduce((sum, item) => sum + item.traffic, 0)}%</strong></div>
+            <div className="version-modal-actions"><button className="modal-secondary" onClick={() => setShowTrafficAdjustment(false)}>Cancel</button><button className="modal-primary" disabled={trafficDraft.reduce((sum, item) => sum + item.traffic, 0) !== 100} onClick={saveTrafficAdjustment}>Save Traffic</button></div>
+          </section>
+        </div>
       )}
 
       {showNewVersion && (
