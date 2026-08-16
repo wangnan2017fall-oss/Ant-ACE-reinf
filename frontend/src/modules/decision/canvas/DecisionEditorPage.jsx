@@ -20,7 +20,7 @@ const initialNodes = [
 
 const initialEdges = [
   { id: 'edge-start-ifelse', from: 'start', to: 'ifElse1' },
-  { id: 'edge-ifelse-action', from: 'ifElse1', to: 'action1', label: 'IF', sourcePortIndex: 0, sourcePortCount: 2 },
+  { id: 'edge-ifelse-action', from: 'ifElse1', to: 'action1', label: 'path_1', branchId: 'true' },
   { id: 'edge-action-end', from: 'action1', to: 'end' },
 ]
 
@@ -133,9 +133,7 @@ function connectionGeometry(source, target, edge = {}) {
   const targetSize = nodeSize(target)
   const sourceCenterX = source.x + sourceSize.width / 2
   const targetCenterX = target.x + targetSize.width / 2
-  const sourceCenterY = source.type === 'ifElse' && Number.isInteger(edge.sourcePortIndex)
-    ? source.y + 50 + ((edge.sourcePortIndex + 0.5) / Math.max(1, edge.sourcePortCount || 1)) * (sourceSize.height - 54)
-    : source.y + sourceSize.height / 2
+  const sourceCenterY = source.y + sourceSize.height / 2
   const targetCenterY = target.y + targetSize.height / 2
 
   if (Math.abs(targetCenterX - sourceCenterX) > Math.abs(targetCenterY - sourceCenterY)) {
@@ -165,12 +163,9 @@ function connectionGeometry(source, target, edge = {}) {
   }
 }
 
-function outputPortPosition(node, sourcePort = null) {
+function outputPortPosition(node) {
   const size = nodeSize(node)
-  const y = node.type === 'ifElse' && sourcePort
-    ? node.y + 50 + ((sourcePort.index + 0.5) / Math.max(1, sourcePort.count || 1)) * (size.height - 54)
-    : node.y + size.height / 2
-  return { x: node.x + size.width, y }
+  return { x: node.x + size.width, y: node.y + size.height / 2 }
 }
 
 function draftConnectionPath(start, end) {
@@ -216,6 +211,7 @@ function DecisionEditorPage() {
   const [dragPreview, setDragPreview] = useState(null)
   const [inputBindings, setInputBindings] = useState(initialInputBindings)
   const [bindingPicker, setBindingPicker] = useState(null)
+  const [conditionLeftPicker, setConditionLeftPicker] = useState(null)
   const [conditionValuePicker, setConditionValuePicker] = useState(null)
   const [conditionExpressionPicker, setConditionExpressionPicker] = useState(null)
   const [startInputTypes, setStartInputTypes] = useState({
@@ -226,6 +222,9 @@ function DecisionEditorPage() {
     true: [{ id: 1, logic: 'AND', variable: 'Feature · credit_report_score', operator: '>=', expression: '700', rightMode: 'value' }],
   })
   const [conditionBranchOrder, setConditionBranchOrder] = useState(['true'])
+  const [conditionBranchNames, setConditionBranchNames] = useState({ true: 'path_1' })
+  const [conditionBranchTargets, setConditionBranchTargets] = useState({ true: 'action1' })
+  const [conditionElseTarget, setConditionElseTarget] = useState('')
   const [actionOperations, setActionOperations] = useState({
     action1: [
       {
@@ -486,7 +485,12 @@ function DecisionEditorPage() {
   }
 
   const deleteEdge = (edgeId) => {
-    setEdges((current) => current.filter((edge) => edge.id !== edgeId))
+    const edge = edges.find((item) => item.id === edgeId)
+    setEdges((current) => current.filter((item) => item.id !== edgeId))
+    if (edge?.branchId) {
+      setConditionBranchTargets((current) => ({ ...current, [edge.branchId]: '' }))
+    }
+    if (edge?.isElse) setConditionElseTarget('')
     setSelectedEdgeId((current) => current === edgeId ? '' : current)
   }
 
@@ -558,6 +562,34 @@ function DecisionEditorPage() {
       const targetId = connectionTargetAt(event.clientX, event.clientY, activeDrag.sourceId)
       if (targetId) {
         const sourcePort = activeDrag.sourcePort
+        const sourceNode = nodes.find((node) => node.id === activeDrag.sourceId)
+        if (sourceNode?.type === 'ifElse') {
+          const existingBranch = conditionBranchOrder.find((branch) => !conditionBranchTargets[branch])
+          const branchId = existingBranch || `branch-${Date.now()}`
+          if (!existingBranch) {
+            const branchNumber = conditionBranchOrder.length + 1
+            setConditionRows((current) => ({
+              ...current,
+              [branchId]: [{ id: Date.now(), logic: 'AND', variable: '', operator: '=', expression: '', rightMode: 'value' }],
+            }))
+            setConditionBranchOrder((current) => [...current, branchId])
+            setConditionBranchNames((current) => ({ ...current, [branchId]: `path_${branchNumber}` }))
+          }
+          setConditionBranchTargets((current) => ({ ...current, [branchId]: targetId }))
+          setEdges((current) => {
+            const withoutBranch = current.filter((edge) => !(edge.from === activeDrag.sourceId && edge.branchId === branchId))
+            return [...withoutBranch, {
+              id: `edge-${activeDrag.sourceId}-${targetId}-${Date.now()}`,
+              from: activeDrag.sourceId,
+              to: targetId,
+              branchId,
+              label: conditionBranchNames[branchId] || `path_${conditionBranchOrder.indexOf(branchId) + 1 || conditionBranchOrder.length + 1}`,
+            }]
+          })
+          connectionDragRef.current = null
+          setConnectionDraft(null)
+          return
+        }
         setEdges((current) => {
           const duplicate = current.some((edge) => (
             edge.from === activeDrag.sourceId
@@ -898,15 +930,58 @@ function DecisionEditorPage() {
       [branchId]: [{ id: Date.now(), logic: 'AND', variable: '', operator: '=', expression: '', rightMode: 'value' }],
     }))
     setConditionBranchOrder((current) => [...current, branchId])
+    setConditionBranchNames((current) => ({ ...current, [branchId]: `path_${conditionBranchOrder.length + 1}` }))
+    setConditionBranchTargets((current) => ({ ...current, [branchId]: '' }))
   }
 
   const deleteConditionBranch = (branch) => {
     if (conditionBranchOrder.length <= 1) return
     setConditionBranchOrder((current) => current.filter((item) => item !== branch))
+    setConditionBranchTargets((current) => {
+      const next = { ...current }
+      delete next[branch]
+      return next
+    })
+    setConditionBranchNames((current) => {
+      const next = { ...current }
+      delete next[branch]
+      return next
+    })
+    setEdges((current) => current.filter((edge) => edge.branchId !== branch))
     setConditionRows((current) => {
       const next = { ...current }
       delete next[branch]
       return next
+    })
+  }
+
+  const setConditionBranchTarget = (branch, targetId) => {
+    setConditionBranchTargets((current) => ({ ...current, [branch]: targetId }))
+    setEdges((current) => {
+      const next = current.filter((edge) => !(edge.from === selectedNodeId && edge.branchId === branch))
+      if (!targetId) return next
+      return [...next, {
+        id: `edge-${selectedNodeId}-${targetId}-${Date.now()}`,
+        from: selectedNodeId,
+        to: targetId,
+        branchId: branch,
+        label: conditionBranchNames[branch] || `path_${conditionBranchOrder.indexOf(branch) + 1}`,
+      }]
+    })
+  }
+
+  const setElseTarget = (targetId) => {
+    setConditionElseTarget(targetId)
+    setEdges((current) => {
+      const next = current.filter((edge) => !(edge.from === selectedNodeId && edge.isElse))
+      if (!targetId) return next
+      return [...next, {
+        id: `edge-${selectedNodeId}-${targetId}-else-${Date.now()}`,
+        from: selectedNodeId,
+        to: targetId,
+        isElse: true,
+        label: 'ELSE',
+      }]
     })
   }
 
@@ -1708,15 +1783,98 @@ function DecisionEditorPage() {
     return (
     <div className="selector-branch-card">
       <div className="selector-branch-header">
-        <i>⋮⋮</i>
         <strong>{label}</strong>
-        <span>Priority {priority}</span>
-        <button aria-label={`Remove ${label}`} onClick={() => deleteConditionBranch(branch)}>−</button>
+        <input
+          className="selector-branch-name"
+          aria-label={`${label} name`}
+          value={conditionBranchNames[branch] || ''}
+          placeholder={`path_${priority}`}
+          onChange={(event) => setConditionBranchNames((current) => ({ ...current, [branch]: event.target.value }))}
+        />
+        <select
+          aria-label={`${label} branch target`}
+          value=""
+          onChange={(event) => setConditionBranchTarget(branch, event.target.value)}
+        >
+          <option value="">Downstream</option>
+          {nodes.filter((node) => node.id !== selectedNodeId && node.type !== 'start').map((node) => (
+            <option key={node.id} value={node.id}>{node.label}</option>
+          ))}
+        </select>
+        {conditionBranchOrder.length > 1 && (
+          <button aria-label={`Remove ${label}`} onClick={() => deleteConditionBranch(branch)}>−</button>
+        )}
       </div>
       {conditionRows[branch].map((row, rowIndex) => {
         const variableType = getConditionVariableType(row.variable, upstreamNodes)
         const operators = getConditionOperators(variableType)
         const fullExpressionMode = row.operator === 'Expression'
+        const leftPickerOpen = conditionLeftPicker?.branch === branch && conditionLeftPicker?.rowId === row.id
+        const leftPickerCategory = conditionLeftPicker?.category || 'all'
+        const leftPickerQuery = (conditionLeftPicker?.query || '').trim().toLowerCase()
+        const leftPickerCategories = [
+          { id: 'all', label: 'All', icon: '⌘' },
+          { id: 'custom', label: 'Custom', icon: 'C' },
+          { id: 'feature', label: 'Feature', icon: 'F', badge: 'Real-time' },
+          { id: 'temporary', label: 'Temporary', icon: 'T' },
+          { id: 'output', label: 'Output', icon: 'O' },
+          { id: 'function', label: 'Function', icon: 'ƒ' },
+          { id: 'keyword', label: 'Keyword', icon: 'SQL' },
+        ]
+        const leftPickerOptions = [
+          ...customConditionVariables.map((variable) => ({
+            category: 'custom',
+            label: `c.${variable.name}`,
+            detail: variable.type,
+            value: `Custom · ${variable.name}`,
+            icon: 'C',
+          })),
+          ...featureVariables.map((variable) => ({
+            category: 'feature',
+            label: `f.${variable.name}`,
+            detail: `${variable.component} · ${variable.type}`,
+            value: `Feature · ${variable.name}`,
+            icon: 'F',
+          })),
+          ...upstreamNodes.flatMap((node) => (node.outputs || []).map((output) => ({
+            category: 'temporary',
+            label: `t.${output}`,
+            detail: node.label,
+            value: `${node.label} · ${output}`,
+            icon: 'T',
+          }))),
+          ...outputVariables.map((variable) => ({
+            category: 'output',
+            label: `o.${variable.name}`,
+            detail: variable.type,
+            value: `Output · ${variable.name}`,
+            icon: 'O',
+          })),
+          ...decisionTableFunctions.map((item) => ({
+            category: 'function',
+            label: item.name,
+            detail: item.description,
+            value: `Function · ${item.syntax}`,
+            icon: 'ƒ',
+          })),
+          ...['AND', 'OR', 'NOT', 'IN', 'TRUE', 'FALSE', 'NULL'].map((keyword) => ({
+            category: 'keyword',
+            label: keyword,
+            detail: 'Keyword',
+            value: `Keyword · ${keyword}`,
+            icon: 'SQL',
+          })),
+        ]
+        const visibleLeftPickerOptions = leftPickerOptions.filter((option) => (
+          (leftPickerCategory === 'all' || option.category === leftPickerCategory)
+          && (!leftPickerQuery || `${option.label} ${option.detail}`.toLowerCase().includes(leftPickerQuery))
+        ))
+        const chooseLeftVariable = (nextVariable) => {
+          const nextOperators = getConditionOperators(getConditionVariableType(nextVariable, upstreamNodes))
+          updateCondition(branch, row.id, 'variable', nextVariable)
+          if (!nextOperators.includes(row.operator)) updateCondition(branch, row.id, 'operator', nextOperators[0])
+          setConditionLeftPicker(null)
+        }
         return (
         <div className="condition-entry" key={row.id}>
           {rowIndex > 0 && (
@@ -1748,50 +1906,92 @@ function DecisionEditorPage() {
               )
               : (
                 <>
-                  <select
-                    aria-label="Left variable"
-                    className="condition-variable"
-                    value={row.variable || ''}
-                    onChange={(event) => {
-                      const nextVariable = event.target.value
-                      const nextOperators = getConditionOperators(getConditionVariableType(nextVariable, upstreamNodes))
-                      updateCondition(branch, row.id, 'variable', nextVariable)
-                      if (!nextOperators.includes(row.operator)) updateCondition(branch, row.id, 'operator', nextOperators[0])
-                    }}
-                  >
-                    <option value="">Select left variable</option>
-                    <optgroup label="Feature">
-                      {featureVariables.map((feature) => <option key={feature.name}>{`Feature · ${feature.name}`}</option>)}
-                    </optgroup>
-                    <optgroup label="Custom">
-                      {customConditionVariables.map((variable) => <option key={variable.name}>{`Custom · ${variable.name}`}</option>)}
-                    </optgroup>
-                    {upstreamNodes.map((node) => (
-                      <optgroup label={node.label} key={node.id}>
-                        {(node.outputs || []).map((output) => <option key={output}>{`${node.label} · ${output}`}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
+                  <div className="condition-left-variable-wrap">
+                    <button
+                      type="button"
+                      aria-label="Left variable"
+                      className={`condition-variable condition-variable-trigger ${row.variable ? 'has-value' : ''}`}
+                      onClick={() => setConditionLeftPicker((current) => (
+                        current?.branch === branch && current?.rowId === row.id
+                          ? null
+                          : { branch, rowId: row.id, category: 'all', query: '' }
+                      ))}
+                    >
+                      <span>{row.variable || 'Select left variable'}</span>
+                      <i>⌄</i>
+                    </button>
+                    {leftPickerOpen && (
+                      <div className="condition-variable-picker">
+                        <div className="condition-variable-picker-header">
+                          <strong>Select Variable</strong>
+                          <label>
+                            <span>⌕</span>
+                            <input
+                              autoFocus
+                              aria-label="Search variables"
+                              value={conditionLeftPicker.query || ''}
+                              placeholder="Search variable"
+                              onChange={(event) => setConditionLeftPicker((current) => ({ ...current, query: event.target.value }))}
+                            />
+                          </label>
+                          <button aria-label="Close variable selector" onClick={() => setConditionLeftPicker(null)}>×</button>
+                        </div>
+                        <div className="condition-variable-picker-body">
+                          <nav className="condition-variable-picker-categories">
+                            {leftPickerCategories.map((item) => (
+                              <button
+                                type="button"
+                                className={leftPickerCategory === item.id ? 'active' : ''}
+                                key={item.id}
+                                onClick={() => setConditionLeftPicker((current) => ({ ...current, category: item.id }))}
+                              >
+                                <i className={item.id}>{item.icon}</i>
+                                <span>{item.label}</span>
+                                {item.badge && <em>{item.badge}</em>}
+                              </button>
+                            ))}
+                          </nav>
+                          <section className="condition-variable-picker-results">
+                            <strong>{leftPickerQuery ? 'Search Result' : leftPickerCategory === 'all' ? 'All Variables' : leftPickerCategories.find((item) => item.id === leftPickerCategory)?.label}</strong>
+                            <div>
+                              {visibleLeftPickerOptions.map((option) => (
+                                <button type="button" key={`${option.category}-${option.label}`} onClick={() => chooseLeftVariable(option.value)}>
+                                  <i className={option.category}>{option.icon}</i>
+                                  <span><b>{option.label}</b><small>{option.detail}</small></span>
+                                  {row.variable === option.value && <em>✓</em>}
+                                </button>
+                              ))}
+                              {!visibleLeftPickerOptions.length && <p>No matching variables</p>}
+                            </div>
+                          </section>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <div className="condition-comparison">
                     <select aria-label="Operator" value={row.operator || '='} onChange={(event) => updateCondition(branch, row.id, 'operator', event.target.value)}>
                       {operators.map((operator) => <option key={operator}>{operator}</option>)}
                     </select>
-                    {row.rightMode === 'expression'
-                      ? renderConditionExpression(branch, row, upstreamNodes)
-                      : (
-                        <input
-                          aria-label="Right variable or value"
-                          value={row.expression || ''}
-                          placeholder={`Enter ${variableType === 'unknown' ? 'value' : variableType} or select variable`}
-                          onChange={(event) => updateCondition(branch, row.id, 'expression', event.target.value)}
-                        />
-                      )}
-                    <button
-                      title="Choose right value source"
-                      onClick={() => setConditionValuePicker((current) => (
-                        current?.branch === branch && current?.rowId === row.id ? null : { branch, rowId: row.id }
-                      ))}
-                    >◇</button>
+                    <div className="condition-value-field">
+                      {row.rightMode === 'expression'
+                        ? renderConditionExpression(branch, row, upstreamNodes)
+                        : (
+                          <input
+                            aria-label="Right variable or value"
+                            value={row.expression || ''}
+                            placeholder={`Enter ${variableType === 'unknown' ? 'value' : variableType} or select variable`}
+                            onChange={(event) => updateCondition(branch, row.id, 'expression', event.target.value)}
+                          />
+                        )}
+                      <button
+                        className="condition-value-source"
+                        title="Choose right value source"
+                        aria-label="Choose right value source"
+                        onClick={() => setConditionValuePicker((current) => (
+                          current?.branch === branch && current?.rowId === row.id ? null : { branch, rowId: row.id }
+                        ))}
+                      >⌄</button>
+                    </div>
                     {conditionValuePicker?.branch === branch && conditionValuePicker?.rowId === row.id && (
                       <div className="condition-reference-picker">
                         <strong>Right value source</strong>
@@ -1826,11 +2026,12 @@ function DecisionEditorPage() {
                   </div>
                 </>
               )}
-            <button
-              aria-label={`Delete ${branch} condition ${rowIndex + 1}`}
-              disabled={conditionRows[branch].length === 1}
-              onClick={() => deleteCondition(branch, row.id)}
-            >−</button>
+            {conditionRows[branch].length > 1 && (
+              <button
+                aria-label={`Delete ${branch} condition ${rowIndex + 1}`}
+                onClick={() => deleteCondition(branch, row.id)}
+              >−</button>
+            )}
           </div>
         </div>
       )})}
@@ -2599,7 +2800,66 @@ function DecisionEditorPage() {
     return (
       <section className="decision-table-config">
         <div className="decision-table-config-title">
-          <div><strong>Configure Rule</strong><span>Build conditions and results with reusable modules</span></div>
+          <div>
+            <div className="decision-table-title-line">
+              <strong>Configure Rule</strong>
+              <span className="decision-table-help" tabIndex="0" aria-label="How Decision Table works">
+                ?
+                <span className="decision-table-help-popover" role="tooltip">
+                  <strong>How this node works?</strong>
+                  <span className="decision-table-help-matrix" aria-label="Two-dimensional Decision Table example">
+                    <span className="matrix-corner" />
+                    <span className="matrix-letter">A</span>
+                    <span className="matrix-letter">B</span>
+                    <span className="matrix-number">1</span>
+                    <span className="matrix-cell matrix-a1">Condition Column</span>
+                    <span className="matrix-cell matrix-b1">Select Variable <small>B1</small></span>
+                    <span className="matrix-number">2</span>
+                    <span className="matrix-cell matrix-a2">Expression <small>A2 · judge</small></span>
+                    <span className="matrix-cell matrix-b2"><b>B2</b><small>Expression or Value</small></span>
+                    <span className="matrix-number">3</span>
+                    <span className="matrix-cell matrix-a3"><b>ELSE</b><small>A3 · type “TRUE”</small></span>
+                    <span className="matrix-cell matrix-b3"><b>B3</b><small>Expression or Value</small></span>
+                    <svg viewBox="0 0 326 168" aria-hidden="true">
+                      <defs>
+                        <marker id="decision-help-arrow-purple" markerHeight="6" markerWidth="6" orient="auto" refX="5" refY="3">
+                          <path d="M0,0 L6,3 L0,6 Z" fill="#7c4ddb" />
+                        </marker>
+                        <marker id="decision-help-arrow-blue" markerHeight="6" markerWidth="6" orient="auto" refX="5" refY="3">
+                          <path d="M0,0 L6,3 L0,6 Z" fill="#4389c6" />
+                        </marker>
+                      </defs>
+                      <path className="condition-arrow" d="M157 93 C174 93 176 93 190 93" markerEnd="url(#decision-help-arrow-blue)" />
+                      <text x="159" y="86">TRUE</text>
+                      <path className="else-arrow" d="M96 106 C96 116 96 121 96 130" markerEnd="url(#decision-help-arrow-blue)" />
+                      <text x="101" y="120">NO MATCH ABOVE</text>
+                      <path className="assignment-arrow" d="M306 91 C319 83 319 52 307 43" markerEnd="url(#decision-help-arrow-purple)" />
+                      <path className="fallback-assignment-arrow" d="M306 143 C330 128 332 64 309 44" markerEnd="url(#decision-help-arrow-purple)" />
+                    </svg>
+                    <span className="matrix-note condition-note">Evaluate A2 first</span>
+                    <span className="matrix-note assignment-note">First matched row assigns B to B1</span>
+                  </span>
+                  <span className="decision-table-help-flow" aria-hidden="true">
+                    <span className="condition-cell"><b>A2</b><small>Condition</small></span>
+                    <i>True →</i>
+                    <span className="value-cell"><b>B2</b><small>Value</small></span>
+                    <i>→</i>
+                    <span className="target-cell"><b>B1</b><small>Variable</small></span>
+                  </span>
+                  <span className="decision-table-help-flow fallback-flow" aria-hidden="true">
+                    <span className="condition-cell"><b>ELSE</b><small>A3 · type “TRUE”</small></span>
+                    <i>No match →</i>
+                    <span className="value-cell"><b>B3</b><small>Fallback</small></span>
+                    <i>→</i>
+                    <span className="target-cell"><b>B1</b><small>Variable</small></span>
+                  </span>
+                  <p>Rows run from top to bottom and the first match wins. If A2 is true, B2 is assigned to B1. If no preceding row matches, type TRUE in A3 to create the ELSE row, then B3 is assigned to B1.</p>
+                  <code>IF A2 → B1 = B2&nbsp;&nbsp;·&nbsp;&nbsp;ELSE (type TRUE in A3) → B1 = B3</code>
+                </span>
+              </span>
+            </div>
+            <span>Build conditions and results with reusable modules</span>
+          </div>
           <button
             aria-label="Expand decision table"
             onClick={() => setDecisionTableExpanded((current) => !current)}
@@ -3003,6 +3263,9 @@ function DecisionEditorPage() {
                 labelY,
               } = connectionGeometry(source, target, edge)
               const selected = selectedEdgeId === edge.id
+              const edgeLabel = edge.branchId
+                ? (conditionBranchNames[edge.branchId] || edge.label)
+                : edge.label
               return (
                 <g
                   key={edge.id}
@@ -3019,15 +3282,15 @@ function DecisionEditorPage() {
                   <path className="edge-hit-area" d={edgePath} />
                   <path className="edge-line" d={edgePath} />
                   <circle cx={endX} cy={endY} r="2.5" />
-                  {edge.label && (
+                  {edgeLabel && (
                     <g>
                       <rect className="edge-label-bg" x={labelX - 30} y={labelY - 12} width="60" height="21" rx="7" />
-                      <text className="edge-label" x={labelX} y={labelY + 2}>{edge.label}</text>
+                      <text className="edge-label" x={labelX} y={labelY + 2}>{edgeLabel}</text>
                     </g>
                   )}
                   <g
                     className="edge-delete-control"
-                    transform={`translate(${labelX} ${labelY + (edge.label ? 20 : 0)})`}
+                    transform={`translate(${labelX} ${labelY + (edgeLabel ? 20 : 0)})`}
                     role="button"
                     aria-label={`Delete connection from ${source.label} to ${target.label}`}
                     onClick={(event) => {
@@ -3112,111 +3375,24 @@ function DecisionEditorPage() {
                       <div className="ifelse-node-preview">
                         {conditionBranchOrder.map((branch, index) => {
                           const condition = conditionRows[branch]?.[0]
-                          const branchLabel = index === 0 ? 'IF' : 'ELSE IF'
-                          const portCount = conditionBranchOrder.length + 1
-                          const quickAddKey = `${node.id}:${branch}`
+                          const target = nodes.find((item) => item.id === conditionBranchTargets[branch])
                           return (
                             <span key={branch}>
-                              <b>{branchLabel}</b>
+                              <b>IF {index + 1}</b>
                               <em>{formatConditionRow(condition)}</em>
-                              <i />
-                              <button
-                                className="branch-add-button"
-                                aria-label={`Add node to ${branchLabel} branch`}
-                                onMouseDown={(event) => startConnectionDrag(event, node, {
-                                  label: branchLabel,
-                                  index,
-                                  count: portCount,
-                                })}
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  if (suppressConnectionClickRef.current) {
-                                    suppressConnectionClickRef.current = false
-                                    return
-                                  }
-                                  selectOnly(node.id)
-                                  setQuickAddNodeId((current) => current === quickAddKey ? '' : quickAddKey)
-                                }}
-                              >
-                                ＋
-                              </button>
-                              {quickAddNodeId === quickAddKey && (
-                                <div
-                                  className="branch-quick-add-menu canvas-toolbar"
-                                  onMouseDown={(event) => event.stopPropagation()}
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <div>
-                                    <strong>Add to {branchLabel}</strong>
-                                    <button aria-label="Close add node menu" onClick={() => setQuickAddNodeId('')}>×</button>
-                                  </div>
-                                  {nodeTypes.map((item) => (
-                                    <button
-                                      key={item.type}
-                                      onClick={() => addNode(item, null, node.id, {
-                                        label: branchLabel,
-                                        index,
-                                        count: portCount,
-                                      })}
-                                    >
-                                      <span className="node-icon" style={{ background: item.color }}>{item.icon}</span>
-                                      <span>{item.label}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
+                              <i>{target?.label || 'Select target'}</i>
                             </span>
                           )
                         })}
                         <span>
-                          <b>ELSE</b><em>Fallback</em><i />
-                          <button
-                            className="branch-add-button"
-                            aria-label="Add node to ELSE branch"
-                            onMouseDown={(event) => startConnectionDrag(event, node, {
-                              label: 'ELSE',
-                              index: conditionBranchOrder.length,
-                              count: conditionBranchOrder.length + 1,
-                            })}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              if (suppressConnectionClickRef.current) {
-                                suppressConnectionClickRef.current = false
-                                return
-                              }
-                              const quickAddKey = `${node.id}:else`
-                              selectOnly(node.id)
-                              setQuickAddNodeId((current) => current === quickAddKey ? '' : quickAddKey)
-                            }}
-                          >
-                            ＋
-                          </button>
-                          {quickAddNodeId === `${node.id}:else` && (
-                            <div
-                              className="branch-quick-add-menu canvas-toolbar"
-                              onMouseDown={(event) => event.stopPropagation()}
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <div>
-                                <strong>Add to ELSE</strong>
-                                <button aria-label="Close add node menu" onClick={() => setQuickAddNodeId('')}>×</button>
-                              </div>
-                              {nodeTypes.map((item) => (
-                                <button
-                                  key={item.type}
-                                  onClick={() => addNode(item, null, node.id, {
-                                    label: 'ELSE',
-                                    index: conditionBranchOrder.length,
-                                    count: conditionBranchOrder.length + 1,
-                                  })}
-                                >
-                                  <span className="node-icon" style={{ background: item.color }}>{item.icon}</span>
-                                  <span>{item.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                          <b>ELSE</b><em>Fallback</em><i>{nodes.find((item) => item.id === conditionElseTarget)?.label || 'Select target'}</i>
                         </span>
+                        <button
+                          className="ifelse-output-port"
+                          aria-label="Connect If-Else output"
+                          onMouseDown={(event) => startConnectionDrag(event, node)}
+                          onClick={(event) => event.stopPropagation()}
+                        >＋</button>
                       </div>
                     ) : node.type === 'block' ? (
                       <div className="block-node-preview">
@@ -3323,7 +3499,7 @@ function DecisionEditorPage() {
               <div className="drawer-header">
                 <button onClick={() => setPanelMode('')} aria-label="Close configuration">×</button>
                 <h3>{selectedNode.label}</h3>
-                <span>ⓘ</span>
+                {selectedNode.type !== 'decisionTable' && <span>ⓘ</span>}
               </div>
               <div className="drawer-body">
                 {!['decisionTable', 'cross', 'action'].includes(selectedNode.type) && (
@@ -3353,11 +3529,19 @@ function DecisionEditorPage() {
                       </div>
                       {conditionBranchOrder.map((branch, index) => (
                         <div key={branch}>
-                          {renderConditionGroup(branch, index === 0 ? 'IF' : 'ELSE IF', index + 1)}
+                          {renderConditionGroup(branch, `IF ${index + 1}`, index + 1)}
                         </div>
                       ))}
                       <div className="selector-else-card">
-                        <div><strong>ELSE</strong><span>Runs when no condition above is met</span></div>
+                        <div>
+                          <strong>ELSE</strong>
+                          <select aria-label="ELSE branch target" value="" onChange={(event) => setElseTarget(event.target.value)}>
+                            <option value="">Downstream</option>
+                            {nodes.filter((node) => node.id !== selectedNodeId && node.type !== 'start').map((node) => (
+                              <option key={node.id} value={node.id}>{node.label}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </section>
                   </>
