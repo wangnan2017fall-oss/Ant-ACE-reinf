@@ -4,6 +4,15 @@ import './Sidebar.css'
 
 const groupedItems = [
   {
+    id: 'strategy',
+    icon: 'policy',
+    label: 'Strategy',
+    children: [
+      { path: '/policy/1', activePath: '/policy', label: 'Policy' },
+      { path: '/decision', label: 'Decision' },
+    ],
+  },
+  {
     id: 'management',
     icon: 'management',
     label: 'Management',
@@ -107,8 +116,9 @@ function Sidebar() {
   const isChildActive = (path) => (
     location.pathname === path || location.pathname.startsWith(`${path}/`)
   )
-  const activeGroup = groupedItems.find((group) => group.children.some((child) => isChildActive(child.path)))
+  const activeGroup = groupedItems.find((group) => group.children.some((child) => isChildActive(child.activePath || child.path)))
   const [expanded, setExpanded] = useState(() => ({
+    strategy: activeGroup?.id === 'strategy',
     management: activeGroup?.id === 'management',
     'data-asset': activeGroup?.id === 'data-asset',
     business: activeGroup?.id === 'business',
@@ -123,9 +133,6 @@ function Sidebar() {
     setExpanded((current) => ({ ...current, [groupId]: !current[groupId] }))
   }
 
-  const policyActive = isActive('/policy')
-  const decisionActive = isActive('/decision')
-
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -134,18 +141,8 @@ function Sidebar() {
       </div>
 
       <nav className="sidebar-nav" aria-label="Product navigation">
-        <Link to="/policy/1" className={`primary-nav-item ${policyActive ? 'active' : ''}`}>
-          <span className="nav-icon"><NavigationIcon name="policy" /></span>
-          <span className="nav-label">Policy</span>
-        </Link>
-
-        <Link to="/decision" className={`primary-nav-item ${decisionActive ? 'active' : ''}`}>
-          <span className="nav-icon"><NavigationIcon name="decision" /></span>
-          <span className="nav-label">Decision</span>
-        </Link>
-
         {groupedItems.map((group) => {
-          const groupActive = group.children.some((child) => isChildActive(child.path))
+          const groupActive = group.children.some((child) => isChildActive(child.activePath || child.path))
           return (
             <section className={`nav-group ${groupActive ? 'active' : ''}`} key={group.id}>
               <button
@@ -160,7 +157,7 @@ function Sidebar() {
               {expanded[group.id] && (
                 <div className="submenu">
                   {group.children.map((child) => (
-                    <Link key={child.path} to={child.path} className={`submenu-item ${isChildActive(child.path) ? 'active' : ''}`}>
+                    <Link key={child.path} to={child.path} className={`submenu-item ${isChildActive(child.activePath || child.path) ? 'active' : ''}`}>
                       <span className="submenu-marker" />
                       {child.label}
                     </Link>
