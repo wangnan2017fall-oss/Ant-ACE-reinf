@@ -4,6 +4,16 @@ import './Sidebar.css'
 
 const groupedItems = [
   {
+    id: 'management',
+    icon: 'management',
+    label: 'Management',
+    children: [
+      { path: '/approval', label: 'Approval' },
+      { path: '/testing', label: 'A/B Testing' },
+      { path: '/case-tracker', label: 'Case Tracker' },
+    ],
+  },
+  {
     id: 'business',
     icon: 'business',
     label: 'Business',
@@ -40,6 +50,13 @@ function NavigationIcon({ name }) {
       </svg>
     )
   }
+  if (name === 'decision') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 4.5h5v5H5zM14 14.5h5v5h-5zM14 4.5h5v5h-5z" /><path d="M10 7h4M16.5 9.5v5M7.5 9.5v3.2c0 2.1 1.7 3.8 3.8 3.8H14" />
+      </svg>
+    )
+  }
   if (name === 'data') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -51,6 +68,13 @@ function NavigationIcon({ name }) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3.5" y="7.5" width="17" height="12" rx="2" /><path d="M8.5 7.5V5.3c0-.9.7-1.6 1.6-1.6h3.8c.9 0 1.6.7 1.6 1.6v2.2M3.5 12h17M10 12v2h4v-2" />
+      </svg>
+    )
+  }
+  if (name === 'management') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 6.5h16M7.5 12h12.5M4 17.5h16" /><circle cx="7" cy="12" r="1.8" /><circle cx="15" cy="6.5" r="1.8" /><circle cx="11" cy="17.5" r="1.8" />
       </svg>
     )
   }
@@ -85,6 +109,7 @@ function Sidebar() {
   )
   const activeGroup = groupedItems.find((group) => group.children.some((child) => isChildActive(child.path)))
   const [expanded, setExpanded] = useState(() => ({
+    management: activeGroup?.id === 'management',
     'data-asset': activeGroup?.id === 'data-asset',
     business: activeGroup?.id === 'business',
   }))
@@ -98,7 +123,8 @@ function Sidebar() {
     setExpanded((current) => ({ ...current, [groupId]: !current[groupId] }))
   }
 
-  const policyActive = ['/policy', '/decision', '/testing', '/case-tracker'].some(isActive)
+  const policyActive = isActive('/policy')
+  const decisionActive = isActive('/decision')
 
   return (
     <aside className="sidebar">
@@ -111,6 +137,11 @@ function Sidebar() {
         <Link to="/policy/1" className={`primary-nav-item ${policyActive ? 'active' : ''}`}>
           <span className="nav-icon"><NavigationIcon name="policy" /></span>
           <span className="nav-label">Policy</span>
+        </Link>
+
+        <Link to="/decision" className={`primary-nav-item ${decisionActive ? 'active' : ''}`}>
+          <span className="nav-icon"><NavigationIcon name="decision" /></span>
+          <span className="nav-label">Decision</span>
         </Link>
 
         {groupedItems.map((group) => {

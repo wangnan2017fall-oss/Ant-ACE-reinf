@@ -26,7 +26,7 @@ function ApprovalCenterPage() {
     },
   ]
 
-  return <GenericPage title="Approval Progress" icon="✓" columns={columns} data={data} />
+  return <GenericPage title="Approval" icon="✓" columns={columns} data={data} />
 }
 
 export default ApprovalCenterPage

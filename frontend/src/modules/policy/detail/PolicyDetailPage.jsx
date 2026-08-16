@@ -1,17 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import DecisionPage from '../../decision/list/DecisionPage'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import './PolicyDetailPage.css'
 
 const tabs = [
   { key: 'details', label: 'Details' },
   { key: 'canvas', label: 'Canvas' },
-  { key: 'decisions', label: 'Decisions', count: 3 },
   { key: 'parameters', label: 'Parameters' },
-  { key: 'ab-testing', label: 'A/B Testing' },
-  { key: 'case-tracker', label: 'Case Tracker' },
   { key: 'records', label: 'Records' },
-  { key: 'approval', label: 'Approval' },
   { key: 'traffic', label: 'Traffic' },
   { key: 'monitoring', label: 'Monitoring' },
 ]
@@ -113,17 +108,6 @@ const parameters = {
   ],
 }
 
-const policyExperiments = [
-  { name: 'limit_strategy_champion_challenger', versions: 'V1.0.3 / V1.0.4', traffic: '80% / 20%', metric: 'Approval Rate', status: 'Running', started: 'Jul 25, 2026' },
-  { name: 'pricing_rate_validation', versions: 'V1.0.2 / V1.0.3', traffic: '50% / 50%', metric: 'Default Rate', status: 'Completed', started: 'Jul 10, 2026' },
-]
-
-const policyCases = [
-  { id: 'CASE-2026-0727-018', request: 'REQ-8K21V4', decision: 'Approved', version: 'V1.0.3', owner: 'luke.wn', created: 'Jul 27, 2026 10:42' },
-  { id: 'CASE-2026-0727-011', request: 'REQ-8K20P9', decision: 'Rejected', version: 'V1.0.3', owner: 'risk.ops', created: 'Jul 27, 2026 09:31' },
-  { id: 'CASE-2026-0726-096', request: 'REQ-8J91M2', decision: 'Manual Review', version: 'V1.0.2', owner: 'chenyu.cy', created: 'Jul 26, 2026 18:05' },
-]
-
 const policyRecords = [
   { actor: 'luke.wn', action: 'Created', target: 'Policy version V1.0.4', detail: 'Copied from V1.0.3', time: 'Jul 27, 2026 11:26' },
   { actor: 'gaochaoxiang.gcx', action: 'Added', target: 'anti_fraud_decision', detail: 'Added Decision node to Policy Canvas', time: 'Jul 27, 2026 10:18' },
@@ -167,11 +151,6 @@ const policyVersionDiffs = {
     ],
   },
 }
-
-const policyApprovalTasks = [
-  { id: 'APR-20260728-017', change: 'Publish version V1.0.4', submittedBy: 'luke.wn', submittedAt: 'Jul 28, 2026 10:18', status: 'Pending' },
-  { id: 'APR-20260727-032', change: 'Publish version V1.0.3', submittedBy: 'gaochaoxiang.gcx', submittedAt: 'Jul 27, 2026 16:42', status: 'Pending' },
-]
 
 const initialVersions = [
   { id: 'V1.0.3', status: 'Active' },
@@ -247,6 +226,7 @@ function PolicyCanvasPreview({ onDecisionClick, onAbTestingClick, selected = fal
 
 function PolicyDetailPage() {
   const { id = '1' } = useParams()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab')
   const [activeTab, setActiveTab] = useState(() => (
@@ -448,7 +428,7 @@ function PolicyDetailPage() {
             <div className="canvas-lane-label">Main flow</div>
             <PolicyCanvasPreview
               onDecisionClick={() => setSelectedPolicyDecision('credit_eligibility_decision')}
-              onAbTestingClick={() => changeTab('ab-testing')}
+              onAbTestingClick={() => navigate('/testing')}
               selected={selectedPolicyDecision === 'credit_eligibility_decision'}
             />
             {selectedDecision && (
@@ -482,12 +462,6 @@ function PolicyDetailPage() {
               </aside>
             )}
           </div>
-        </section>
-      )}
-
-      {activeTab === 'decisions' && (
-        <section className="policy-decision-management">
-          <DecisionPage embedded />
         </section>
       )}
 
@@ -526,59 +500,6 @@ function PolicyDetailPage() {
                     {parameterType === 'feature' && <><td>{item.component}</td><td><code>{item.key}</code></td></>}
                     {parameterType !== 'feature' && <td>{item.source}</td>}
                     <td>{parameterType === 'output' ? item.returnedBy : item.usedIn || item.source}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'ab-testing' && (
-        <section className="policy-workspace-panel">
-          <div className="panel-heading">
-            <div><h2>A/B Testing</h2><p>Compare Policy versions by traffic allocation and business outcome.</p></div>
-            <button className="panel-primary-action">＋ Create Test</button>
-          </div>
-          <div className="workspace-summary">
-            <div><span>Running Tests</span><strong>1</strong></div>
-            <div><span>Total Traffic</span><strong>100%</strong></div>
-            <div><span>Primary Metric</span><strong>Approval Rate</strong></div>
-          </div>
-          <div className="workspace-table-wrap">
-            <table className="workspace-table">
-              <thead><tr><th>Test Name</th><th>Versions</th><th>Traffic Split</th><th>Primary Metric</th><th>Status</th><th>Started At</th><th /></tr></thead>
-              <tbody>
-                {policyExperiments.map((test) => (
-                  <tr key={test.name}>
-                    <td><strong>{test.name}</strong></td><td>{test.versions}</td><td>{test.traffic}</td><td>{test.metric}</td>
-                    <td><span className={`workspace-status ${test.status.toLowerCase()}`}>{test.status}</span></td><td>{test.started}</td><td><button>Details</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'case-tracker' && (
-        <section className="policy-workspace-panel">
-          <div className="panel-heading">
-            <div><h2>Case Tracker</h2><p>Trace individual requests and review the result produced by this Policy.</p></div>
-            <label className="inline-search"><span>⌕</span><input placeholder="Search case or request ID" /></label>
-          </div>
-          <div className="workspace-filters">
-            <button className="active">All Cases</button><button>Approved</button><button>Rejected</button><button>Manual Review</button>
-          </div>
-          <div className="workspace-table-wrap">
-            <table className="workspace-table">
-              <thead><tr><th>Case ID</th><th>Request ID</th><th>Decision</th><th>Policy Version</th><th>Owner</th><th>Created At</th><th /></tr></thead>
-              <tbody>
-                {policyCases.map((item) => (
-                  <tr key={item.id}>
-                    <td><strong>{item.id}</strong></td><td><code>{item.request}</code></td>
-                    <td><span className={`case-result ${item.decision.toLowerCase().replace(' ', '-')}`}>{item.decision}</span></td>
-                    <td>{item.version}</td><td>{item.owner}</td><td>{item.created}</td><td><button>Open</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -655,34 +576,6 @@ function PolicyDetailPage() {
               </div>
             </div>
           )}
-        </section>
-      )}
-
-      {activeTab === 'approval' && (
-        <section className="policy-workspace-panel">
-          <div className="panel-heading">
-            <div><h2>My Task</h2><p>Policy changes waiting for your approval.</p></div>
-            <label className="inline-search"><span>⌕</span><input placeholder="Search task ID or change" /></label>
-          </div>
-          <div className="workspace-table-wrap">
-            <table className="workspace-table">
-              <thead>
-                <tr><th>Task ID</th><th>Change</th><th>Submitted By</th><th>Submitted At</th><th>Status</th><th /></tr>
-              </thead>
-              <tbody>
-                {policyApprovalTasks.map((task) => (
-                  <tr key={task.id}>
-                    <td><strong>{task.id}</strong></td>
-                    <td>{task.change}</td>
-                    <td>{task.submittedBy}</td>
-                    <td>{task.submittedAt}</td>
-                    <td><span className="workspace-status running">{task.status}</span></td>
-                    <td><button>Review</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </section>
       )}
 
