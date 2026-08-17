@@ -41,7 +41,7 @@ const groupedItems = [
       { path: '/data-source', label: 'Data Source' },
       { path: '/data-connector', label: 'Data Connector' },
       { path: '/feature', label: 'Feature' },
-      { path: '/customer', label: 'Customer' },
+      { path: '/custom', label: 'Custom' },
     ],
   },
 ]

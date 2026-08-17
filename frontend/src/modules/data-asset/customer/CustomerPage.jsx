@@ -11,7 +11,7 @@ const tabs = [
 ]
 
 const columns = [
-  { header: 'Customer Variable', accessor: 'name', sortable: true, render: (row) => <span className="name-cell">{row.name}</span> },
+  { header: 'Custom Variable', accessor: 'name', sortable: true, render: (row) => <span className="name-cell">{row.name}</span> },
   { header: 'Created By', accessor: 'createdBy', sortable: true, render: (row) => <div className="creator-cell"><Avatar name={row.createdBy} /><span>{row.createdBy}</span></div> },
   { header: 'Data Type', accessor: 'type', sortable: true },
   { header: 'Source', accessor: 'source', sortable: true },
@@ -38,7 +38,7 @@ function CustomerPage() {
 
   return (
     <div className="feature-page">
-      <PageHeader title="Customer" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} actionLabel="Create Customer Variable" onAction={() => {}} />
+      <PageHeader title="Custom" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} actionLabel="Create Custom Variable" onAction={() => {}} />
       <div className="filter-bar">
         <div className="filter-actions">
           <button className="filter-btn">Filter<span className="filter-arrow">▾</span></button>
