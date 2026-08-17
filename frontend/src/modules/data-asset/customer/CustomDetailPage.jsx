@@ -60,8 +60,8 @@ function CustomDetailPage() {
             <h3 className="info-card-title">Custom Variable</h3>
             <div className="custom-table-scroll">
               <table className="parameter-table">
-                <thead><tr><th>Name</th><th>Description</th><th>Type</th><th>Source</th><th>Default Value</th></tr></thead>
-                <tbody><tr><td>{customVariable.name}</td><td>{customVariable.description}</td><td>{customVariable.type.toUpperCase()}</td><td>{customVariable.source}</td><td>{customVariable.defaultValue || 'Empty Object'}</td></tr></tbody>
+                <thead><tr><th>Name</th><th>Description</th><th>Type</th><th>Default Value</th></tr></thead>
+                <tbody><tr><td>{customVariable.name}</td><td>{customVariable.description}</td><td>{customVariable.type.toUpperCase()}</td><td>{customVariable.defaultValue || 'Empty Object'}</td></tr></tbody>
               </table>
             </div>
           </section>
