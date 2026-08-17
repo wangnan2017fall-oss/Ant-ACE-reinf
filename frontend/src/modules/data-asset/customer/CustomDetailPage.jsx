@@ -7,8 +7,6 @@ import './CustomDetailPage.css'
 
 const tabs = [
   { key: 'information', label: 'Information' },
-  { key: 'verification', label: 'Verification Records' },
-  { key: 'lineage', label: 'Lineage' },
 ]
 
 function CustomDetailPage() {
@@ -70,23 +68,6 @@ function CustomDetailPage() {
         </div>
       )}
 
-      {activeTab === 'verification' && (
-        <section className="info-card">
-          <div className="custom-section-heading"><div><h3 className="info-card-title">Verification Records</h3><p>Validation results recorded for this Custom variable.</p></div></div>
-          <table className="parameter-table"><thead><tr><th>Verified At</th><th>Verified By</th><th>Result</th></tr></thead><tbody><tr><td>{customVariable.lastUpdatedAt}</td><td>{customVariable.createdBy}</td><td><StatusBadge status="Passed" /></td></tr></tbody></table>
-        </section>
-      )}
-
-      {activeTab === 'lineage' && (
-        <section className="info-card">
-          <div className="custom-section-heading"><div><h3 className="info-card-title">Lineage</h3><p>Where this variable comes from and where it is used.</p></div></div>
-          <div className="custom-lineage">
-            <div className="lineage-node"><small>Source</small><strong>{customVariable.source}</strong></div><span>→</span>
-            <div className="lineage-node current"><small>Custom</small><strong>{customVariable.name}</strong></div><span>→</span>
-            <div className="lineage-node"><small>Used In</small><strong>{customVariable.usedIn} references</strong></div>
-          </div>
-        </section>
-      )}
     </div>
   )
 }

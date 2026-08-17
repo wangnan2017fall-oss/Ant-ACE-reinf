@@ -17,14 +17,3 @@
 .custom-detail-page .parameter-table th { background: #f7f8fa; color: #566176; font-weight: 500; }
 .custom-detail-page .parameter-table th,
 .custom-detail-page .parameter-table td { padding: 14px 18px; }
-.custom-section-heading p { margin: -14px 0 22px; color: #99a1b1; font-size: 13px; }
-.custom-lineage { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 28px 10px 14px; color: #8b93a3; }
-.lineage-node { min-width: 190px; padding: 18px; border: 1px solid #dfe3ea; border-radius: 12px; background: #fff; }
-.lineage-node.current { border-color: #bda2ff; background: #faf7ff; }
-.lineage-node small { display: block; margin-bottom: 7px; color: #9aa2b1; }
-.lineage-node strong { color: #222030; font-size: 14px; }
-
-@media (max-width: 900px) {
-  .custom-lineage { align-items: stretch; flex-direction: column; }
-  .custom-lineage > span { align-self: center; transform: rotate(90deg); }
-}
