@@ -500,7 +500,7 @@ function PolicyDetailPage() {
           </div>
           <div className="parameter-tabs">
             {[
-              { key: 'customer', label: 'Customer', count: parameters.customer.length },
+              { key: 'customer', label: 'Custom', count: parameters.customer.length },
               { key: 'feature', label: 'Feature', count: parameters.feature.length },
               { key: 'output', label: 'Output', count: parameters.output.length },
             ].map((item) => (

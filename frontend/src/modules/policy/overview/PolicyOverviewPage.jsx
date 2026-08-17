@@ -184,7 +184,7 @@ function PolicyOverviewPage() {
           </div>
           <div className="parameter-tabs">
             {[
-              { key: 'customer', label: 'Customer', count: parameters.customer.length },
+              { key: 'customer', label: 'Custom', count: parameters.customer.length },
               { key: 'feature', label: 'Feature', count: parameters.feature.length },
               { key: 'output', label: 'Output', count: parameters.output.length },
             ].map((item) => <button key={item.key} className={parameterType === item.key ? 'active' : ''} onClick={() => setParameterType(item.key)}>{item.label}<span>{item.count}</span></button>)}
