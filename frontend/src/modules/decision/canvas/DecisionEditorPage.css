@@ -2659,6 +2659,13 @@
   background: #f3f0fb;
 }
 
+.condition-variable-picker-categories > button.separated {
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0 0 8px 8px;
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
 .condition-variable-picker-categories i,
 .condition-variable-picker-results i {
   display: grid;

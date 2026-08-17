@@ -1810,15 +1810,13 @@ function DecisionEditorPage() {
         const operators = getConditionOperators(variableType)
         const fullExpressionMode = row.operator === 'Expression'
         const leftPickerOpen = conditionLeftPicker?.branch === branch && conditionLeftPicker?.rowId === row.id
-        const leftPickerCategory = conditionLeftPicker?.category || 'all'
+        const leftPickerCategory = conditionLeftPicker?.category || 'feature'
         const leftPickerQuery = (conditionLeftPicker?.query || '').trim().toLowerCase()
         const leftPickerCategories = [
-          { id: 'all', label: 'All', icon: '⌘' },
-          { id: 'custom', label: 'Custom', icon: 'C' },
           { id: 'feature', label: 'Feature', icon: 'F', badge: 'Real-time' },
+          { id: 'custom', label: 'Custom', icon: 'C' },
           { id: 'temporary', label: 'Temporary', icon: 'T' },
-          { id: 'output', label: 'Output', icon: 'O' },
-          { id: 'function', label: 'Function', icon: 'ƒ' },
+          { id: 'function', label: 'Function', icon: 'ƒ', separated: true },
           { id: 'keyword', label: 'Keyword', icon: 'SQL' },
         ]
         const leftPickerOptions = [
@@ -1843,13 +1841,6 @@ function DecisionEditorPage() {
             value: `${node.label} · ${output}`,
             icon: 'T',
           }))),
-          ...outputVariables.map((variable) => ({
-            category: 'output',
-            label: `o.${variable.name}`,
-            detail: variable.type,
-            value: `Output · ${variable.name}`,
-            icon: 'O',
-          })),
           ...decisionTableFunctions.map((item) => ({
             category: 'function',
             label: item.name,
@@ -1866,7 +1857,7 @@ function DecisionEditorPage() {
           })),
         ]
         const visibleLeftPickerOptions = leftPickerOptions.filter((option) => (
-          (leftPickerCategory === 'all' || option.category === leftPickerCategory)
+          option.category === leftPickerCategory
           && (!leftPickerQuery || `${option.label} ${option.detail}`.toLowerCase().includes(leftPickerQuery))
         ))
         const chooseLeftVariable = (nextVariable) => {
@@ -1914,7 +1905,7 @@ function DecisionEditorPage() {
                       onClick={() => setConditionLeftPicker((current) => (
                         current?.branch === branch && current?.rowId === row.id
                           ? null
-                          : { branch, rowId: row.id, category: 'all', query: '' }
+                          : { branch, rowId: row.id, category: 'feature', query: '' }
                       ))}
                     >
                       <span>{row.variable || 'Select left variable'}</span>
@@ -1941,7 +1932,7 @@ function DecisionEditorPage() {
                             {leftPickerCategories.map((item) => (
                               <button
                                 type="button"
-                                className={leftPickerCategory === item.id ? 'active' : ''}
+                                className={`${leftPickerCategory === item.id ? 'active' : ''}${item.separated ? ' separated' : ''}`}
                                 key={item.id}
                                 onClick={() => setConditionLeftPicker((current) => ({ ...current, category: item.id }))}
                               >
@@ -1952,7 +1943,7 @@ function DecisionEditorPage() {
                             ))}
                           </nav>
                           <section className="condition-variable-picker-results">
-                            <strong>{leftPickerQuery ? 'Search Result' : leftPickerCategory === 'all' ? 'All Variables' : leftPickerCategories.find((item) => item.id === leftPickerCategory)?.label}</strong>
+                            <strong>{leftPickerQuery ? 'Search Result' : leftPickerCategories.find((item) => item.id === leftPickerCategory)?.label}</strong>
                             <div>
                               {visibleLeftPickerOptions.map((option) => (
                                 <button type="button" key={`${option.category}-${option.label}`} onClick={() => chooseLeftVariable(option.value)}>
