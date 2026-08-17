@@ -65,3 +65,28 @@
 .custom-modal-actions button { min-width: 92px; border-radius: 9px; padding: 10px 18px; font-weight: 700; cursor: pointer; }
 .custom-modal-actions .secondary { border: 1px solid #dcd7e5; background: #fff; color: #514a5e; }
 .custom-modal-actions .primary { border: 1px solid #7d3cff; background: #7d3cff; color: #fff; }
+
+.custom-filter-wrap { position: relative; }
+.custom-filter-wrap .filter-btn.active { border-color: #7d3cff; box-shadow: 0 0 0 2px rgba(125, 60, 255, .12); color: #282333; }
+.filter-symbol { display: inline-block; transform: rotate(90deg); color: #6f687b; font-weight: 700; }
+.filter-count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #7d3cff; color: #fff; font-size: 11px; }
+.custom-filter-panel { position: absolute; z-index: 50; top: calc(100% + 8px); left: 0; display: grid; grid-template-columns: 210px 390px; min-height: 292px; overflow: hidden; border: 1px solid #e1dce9; border-radius: 14px; background: #fff; box-shadow: 0 18px 50px rgba(37, 25, 62, .18); }
+.custom-filter-nav { display: flex; flex-direction: column; gap: 4px; padding: 18px 14px; border-right: 1px solid #ebe7f0; }
+.custom-filter-nav button { border: 0; border-radius: 10px; background: transparent; padding: 12px 16px; color: #4e586c; font: inherit; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer; }
+.custom-filter-nav button.active { background: #f7f5fa; color: #201b2a; }
+.custom-filter-content { display: flex; flex-direction: column; padding: 26px 24px 20px; }
+.custom-filter-content > label,
+.custom-date-filter { display: grid; gap: 10px; color: #343041; font-size: 14px; font-weight: 700; }
+.custom-filter-content input { box-sizing: border-box; width: 100%; min-height: 42px; border: 1px solid #dcd7e5; border-radius: 9px; padding: 10px 12px; color: #292433; font: inherit; font-weight: 400; outline: none; }
+.custom-filter-content input:focus { border-color: #7d3cff; box-shadow: 0 0 0 2px rgba(125, 60, 255, .1); }
+.custom-date-filter > div { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 10px; }
+.custom-date-filter label { display: grid; gap: 6px; }
+.custom-date-filter small { color: #8d8699; font-size: 11px; font-weight: 500; }
+.custom-date-filter i { padding-bottom: 12px; color: #9b94a6; font-style: normal; }
+.custom-filter-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: auto; padding-top: 24px; }
+.custom-filter-footer button { min-width: 78px; border: 1px solid #dcd7e5; border-radius: 8px; background: #fff; padding: 9px 15px; color: #4e475a; font-weight: 700; cursor: pointer; }
+.custom-filter-footer button.apply { border-color: #7d3cff; background: #7d3cff; color: #fff; }
+
+@media (max-width: 760px) {
+  .custom-filter-panel { grid-template-columns: 150px minmax(280px, 1fr); }
+}

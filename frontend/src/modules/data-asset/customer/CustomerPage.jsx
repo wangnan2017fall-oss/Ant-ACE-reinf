@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import PageHeader from '../../../shared/components/common/PageHeader'
 import DataTable from '../../../shared/components/common/DataTable'
-import StatusBadge from '../../../shared/components/common/StatusBadge'
 import Avatar from '../../../shared/components/common/Avatar'
 import '../feature/FeaturePage.css'
 import './CustomerPage.css'
@@ -18,7 +17,6 @@ const columns = [
   { header: 'Source', accessor: 'source', sortable: true },
   { header: 'Category', accessor: 'category', sortable: true },
   { header: 'Used In', accessor: 'usedIn', sortable: true },
-  { header: 'Status', accessor: 'status', sortable: true, render: (row) => <StatusBadge status={row.status} /> },
   { header: 'Last Updated At', accessor: 'lastUpdatedAt', sortable: true },
   { header: 'Description', accessor: 'description' },
 ]
@@ -35,11 +33,32 @@ function CustomerPage() {
   const [activeTab, setActiveTab] = useState('realtime')
   const [searchValue, setSearchValue] = useState('')
   const [records, setRecords] = useState(customerVariables)
+  const [showFilter, setShowFilter] = useState(false)
+  const [filterSection, setFilterSection] = useState('name')
+  const emptyFilters = { name: '', creator: '', creationFrom: '', creationTo: '', modificationFrom: '', modificationTo: '' }
+  const [filterDraft, setFilterDraft] = useState(emptyFilters)
+  const [filters, setFilters] = useState(emptyFilters)
   const [showCreate, setShowCreate] = useState(false)
   const [draft, setDraft] = useState({ name: '', type: 'String', defaultValue: '', description: '' })
   const [formError, setFormError] = useState('')
   const query = searchValue.trim().toLowerCase()
-  const filteredData = records.filter((item) => !query || Object.values(item).some((value) => String(value).toLowerCase().includes(query)))
+  const isWithinRange = (value, from, to) => {
+    if (!from && !to) return true
+    const timestamp = new Date(value).getTime()
+    if (Number.isNaN(timestamp)) return false
+    if (from && timestamp < new Date(`${from}T00:00:00`).getTime()) return false
+    if (to && timestamp > new Date(`${to}T23:59:59`).getTime()) return false
+    return true
+  }
+  const filteredData = records.filter((item) => {
+    const matchesSearch = !query || Object.values(item).some((value) => String(value).toLowerCase().includes(query))
+    const matchesName = !filters.name || item.name.toLowerCase().includes(filters.name.trim().toLowerCase())
+    const matchesCreator = !filters.creator || item.createdBy.toLowerCase().includes(filters.creator.trim().toLowerCase())
+    const matchesCreationTime = isWithinRange(item.createdAt, filters.creationFrom, filters.creationTo)
+    const matchesModificationTime = isWithinRange(item.lastUpdatedAt, filters.modificationFrom, filters.modificationTo)
+    return matchesSearch && matchesName && matchesCreator && matchesCreationTime && matchesModificationTime
+  })
+  const activeFilterCount = [filters.name, filters.creator, filters.creationFrom || filters.creationTo, filters.modificationFrom || filters.modificationTo].filter(Boolean).length
 
   const closeCreate = () => {
     setShowCreate(false)
@@ -60,6 +79,7 @@ function CustomerPage() {
       id: Math.max(...current.map((item) => item.id), 0) + 1,
       name,
       createdBy: 'luke.wn',
+      createdAt: '2026-08-17 12:00:00',
       type: draft.type,
       defaultValue: draft.defaultValue,
       source: 'Custom',
@@ -78,7 +98,45 @@ function CustomerPage() {
       <PageHeader title="Custom" tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} actionLabel="Create Custom Variable" onAction={() => setShowCreate(true)} />
       <div className="filter-bar">
         <div className="filter-actions">
-          <button className="filter-btn">Filter<span className="filter-arrow">▾</span></button>
+          <div className="custom-filter-wrap">
+            <button className={`filter-btn ${showFilter ? 'active' : ''}`} onClick={() => setShowFilter((current) => !current)} aria-expanded={showFilter}>
+              <span className="filter-symbol">≡</span>
+              Filter
+              {activeFilterCount > 0 && <span className="filter-count">{activeFilterCount}</span>}
+            </button>
+            {showFilter && (
+              <section className="custom-filter-panel" aria-label="Custom variable filters">
+                <nav className="custom-filter-nav">
+                  {[
+                    ['name', 'Name'],
+                    ['creator', 'Creator'],
+                    ['creation', 'Creation Time'],
+                    ['modification', 'Modification Time'],
+                  ].map(([key, label]) => (
+                    <button key={key} className={filterSection === key ? 'active' : ''} onClick={() => setFilterSection(key)}>{label}</button>
+                  ))}
+                </nav>
+                <div className="custom-filter-content">
+                  {filterSection === 'name' && (
+                    <label><span>Name</span><input autoFocus value={filterDraft.name} placeholder="Enter Custom variable name" onChange={(event) => setFilterDraft({ ...filterDraft, name: event.target.value })} /></label>
+                  )}
+                  {filterSection === 'creator' && (
+                    <label><span>Creator</span><input autoFocus value={filterDraft.creator} placeholder="Enter creator name" onChange={(event) => setFilterDraft({ ...filterDraft, creator: event.target.value })} /></label>
+                  )}
+                  {filterSection === 'creation' && (
+                    <div className="custom-date-filter"><span>Creation Time</span><div><label><small>Start date</small><input type="date" value={filterDraft.creationFrom} onChange={(event) => setFilterDraft({ ...filterDraft, creationFrom: event.target.value })} /></label><i>–</i><label><small>End date</small><input type="date" value={filterDraft.creationTo} onChange={(event) => setFilterDraft({ ...filterDraft, creationTo: event.target.value })} /></label></div></div>
+                  )}
+                  {filterSection === 'modification' && (
+                    <div className="custom-date-filter"><span>Modification Time</span><div><label><small>Start date</small><input type="date" value={filterDraft.modificationFrom} onChange={(event) => setFilterDraft({ ...filterDraft, modificationFrom: event.target.value })} /></label><i>–</i><label><small>End date</small><input type="date" value={filterDraft.modificationTo} onChange={(event) => setFilterDraft({ ...filterDraft, modificationTo: event.target.value })} /></label></div></div>
+                  )}
+                  <div className="custom-filter-footer">
+                    <button onClick={() => { setFilterDraft(emptyFilters); setFilters(emptyFilters) }}>Reset</button>
+                    <button className="apply" onClick={() => { setFilters(filterDraft); setShowFilter(false) }}>Apply</button>
+                  </div>
+                </div>
+              </section>
+            )}
+          </div>
           <button className="bulk-action-btn">Bulk Action<span className="filter-arrow">▾</span></button>
         </div>
         <div className="search-box"><span className="search-icon">⌕</span><input type="text" placeholder="Search Name/Creator" value={searchValue} onChange={(event) => setSearchValue(event.target.value)} /></div>
