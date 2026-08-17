@@ -39,6 +39,60 @@ const customConditionVariables = [
   { name: 'is_repeat_customer', type: 'boolean' },
 ]
 
+const temporaryConditionVariables = [
+  { name: 'risk_score', type: 'number', source: 'Current Decision' },
+  { name: 'customer_tier', type: 'string', source: 'Current Decision' },
+]
+
+const outsideTemporaryPolicies = [
+  {
+    id: 'kwai_disburse_policy',
+    label: 'kwai_disburse_policy',
+    decisions: [
+      {
+        id: 'credit_eligibility_decision',
+        label: 'credit_eligibility_decision',
+        outputs: [
+          { name: 'approved', type: 'boolean' },
+          { name: 'customer_tier', type: 'string' },
+          { name: 'risk_score', type: 'number' },
+        ],
+      },
+      {
+        id: 'limit_pricing_decision',
+        label: 'limit_pricing_decision',
+        outputs: [
+          { name: 'credit_limit', type: 'number' },
+          { name: 'interest_rate', type: 'number' },
+          { name: 'loan_term', type: 'integer' },
+        ],
+      },
+      {
+        id: 'anti_fraud_decision',
+        label: 'anti_fraud_decision',
+        outputs: [
+          { name: 'fraud_result', type: 'string' },
+          { name: 'reject_reason', type: 'string' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'bnpl_credit_policy',
+    label: 'bnpl_credit_policy',
+    decisions: [
+      {
+        id: 'bnpl_credit_decision',
+        label: 'bnpl_credit_decision',
+        outputs: [
+          { name: 'decision_code', type: 'string' },
+          { name: 'approved_amount', type: 'number' },
+        ],
+      },
+    ],
+  },
+]
+
 const localVariables = [
   { name: 'approved', type: 'boolean', source: 'Eligibility Check.approved' },
   { name: 'customer_tier', type: 'string', source: 'Eligibility Check.customer_tier' },
@@ -1812,6 +1866,8 @@ function DecisionEditorPage() {
         const leftPickerOpen = conditionLeftPicker?.branch === branch && conditionLeftPicker?.rowId === row.id
         const leftPickerCategory = conditionLeftPicker?.category || 'feature'
         const leftPickerQuery = (conditionLeftPicker?.query || '').trim().toLowerCase()
+        const selectedOutsidePolicy = outsideTemporaryPolicies.find((policy) => policy.id === conditionLeftPicker?.outsidePolicy)
+        const selectedOutsideDecision = selectedOutsidePolicy?.decisions.find((decision) => decision.id === conditionLeftPicker?.outsideDecision)
         const leftPickerCategories = [
           { id: 'feature', label: 'Feature', icon: 'F', badge: 'Real-time' },
           { id: 'custom', label: 'Custom', icon: 'C' },
@@ -1833,6 +1889,13 @@ function DecisionEditorPage() {
             detail: `${variable.component} · ${variable.type}`,
             value: `Feature · ${variable.name}`,
             icon: 'F',
+          })),
+          ...temporaryConditionVariables.map((variable) => ({
+            category: 'temporary',
+            label: `t.${variable.name}`,
+            detail: `${variable.source} · ${variable.type}`,
+            value: `Temporary · ${variable.name}`,
+            icon: 'T',
           })),
           ...upstreamNodes.flatMap((node) => (node.outputs || []).map((output) => ({
             category: 'temporary',
@@ -1942,9 +2005,9 @@ function DecisionEditorPage() {
                               </button>
                             ))}
                           </nav>
-                          <section className="condition-variable-picker-results">
+                          <section className={`condition-variable-picker-results ${leftPickerCategory === 'temporary' ? 'temporary-results' : ''}`}>
                             <strong>{leftPickerQuery ? 'Search Result' : leftPickerCategories.find((item) => item.id === leftPickerCategory)?.label}</strong>
-                            <div>
+                            <div className="condition-variable-option-list">
                               {visibleLeftPickerOptions.map((option) => (
                                 <button type="button" key={`${option.category}-${option.label}`} onClick={() => chooseLeftVariable(option.value)}>
                                   <i className={option.category}>{option.icon}</i>
@@ -1954,6 +2017,69 @@ function DecisionEditorPage() {
                               ))}
                               {!visibleLeftPickerOptions.length && <p>No matching variables</p>}
                             </div>
+                            {leftPickerCategory === 'temporary' && (
+                              <div className="outside-temporary">
+                                <div className="outside-temporary-title">
+                                  <strong>Outside Temporary</strong>
+                                  <span>Use an output from another Decision in a Policy</span>
+                                </div>
+                                <div className="outside-temporary-path">
+                                  <label>
+                                    <span>Policy</span>
+                                    <select
+                                      aria-label="Outside Temporary Policy"
+                                      value={conditionLeftPicker?.outsidePolicy || ''}
+                                      onChange={(event) => setConditionLeftPicker((current) => ({
+                                        ...current,
+                                        outsidePolicy: event.target.value,
+                                        outsideDecision: '',
+                                      }))}
+                                    >
+                                      <option value="">Select Policy</option>
+                                      {outsideTemporaryPolicies.map((policy) => (
+                                        <option key={policy.id} value={policy.id}>{policy.label}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <span className="outside-temporary-arrow">›</span>
+                                  <label>
+                                    <span>Decision</span>
+                                    <select
+                                      aria-label="Outside Temporary Decision"
+                                      disabled={!selectedOutsidePolicy}
+                                      value={conditionLeftPicker?.outsideDecision || ''}
+                                      onChange={(event) => setConditionLeftPicker((current) => ({
+                                        ...current,
+                                        outsideDecision: event.target.value,
+                                      }))}
+                                    >
+                                      <option value="">Select Decision</option>
+                                      {(selectedOutsidePolicy?.decisions || []).map((decision) => (
+                                        <option key={decision.id} value={decision.id}>{decision.label}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <span className="outside-temporary-arrow">›</span>
+                                  <label>
+                                    <span>Output</span>
+                                    <select
+                                      aria-label="Outside Temporary Output"
+                                      disabled={!selectedOutsideDecision}
+                                      value=""
+                                      onChange={(event) => {
+                                        if (!event.target.value || !selectedOutsidePolicy || !selectedOutsideDecision) return
+                                        chooseLeftVariable(`Outside Temporary · ${selectedOutsidePolicy.label} · ${selectedOutsideDecision.label} · ${event.target.value}`)
+                                      }}
+                                    >
+                                      <option value="">Select Output</option>
+                                      {(selectedOutsideDecision?.outputs || []).map((output) => (
+                                        <option key={output.name} value={output.name}>{output.name} · {output.type}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                              </div>
+                            )}
                           </section>
                         </div>
                       </div>
