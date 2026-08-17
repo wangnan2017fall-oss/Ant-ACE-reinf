@@ -58,12 +58,11 @@ const outputVariables = [
 const variableTypeOptions = ['String', 'Integer', 'Number', 'Boolean', 'Time', 'Object', 'Array', 'File']
 
 const decisionTablePickerCategories = [
-  { id: 'all', label: 'All', icon: '⌘' },
-  { id: 'custom', label: 'Custom', icon: 'C' },
   { id: 'feature', label: 'Feature', icon: 'F', badge: 'Real-time' },
-  { id: 'upstream', label: 'Upstream Output', icon: 'N' },
-  { id: 'function', label: 'Function', icon: 'ƒ' },
-  { id: 'operator', label: 'Operator', icon: '±' },
+  { id: 'custom', label: 'Custom', icon: 'C' },
+  { id: 'temporary', label: 'Temporary', icon: 'T' },
+  { id: 'function', label: 'Function', icon: 'ƒ', separated: true },
+  { id: 'keyword', label: 'Keyword', icon: 'SQL' },
 ]
 
 const decisionTableFunctions = [
@@ -75,25 +74,6 @@ const decisionTableFunctions = [
   { name: 'get_json_object', description: 'Read a field from JSON', syntax: 'get_json_object(json, path)' },
   { name: 'lpad', description: 'Left pad a string', syntax: 'lpad(value, length, pad)' },
   { name: 'rpad', description: 'Right pad a string', syntax: 'rpad(value, length, pad)' },
-]
-
-const decisionTableOperators = [
-  { label: '+', detail: 'Add', group: 'Arithmetic' },
-  { label: '−', detail: 'Subtract', group: 'Arithmetic' },
-  { label: '×', detail: 'Multiply', group: 'Arithmetic' },
-  { label: '÷', detail: 'Divide', group: 'Arithmetic' },
-  { label: '%', detail: 'Remainder', group: 'Arithmetic' },
-  { label: '=', detail: 'Equal', group: 'Comparison' },
-  { label: '!=', detail: 'Not equal', group: 'Comparison' },
-  { label: '>', detail: 'Greater than', group: 'Comparison' },
-  { label: '>=', detail: 'Greater than or equal', group: 'Comparison' },
-  { label: '<', detail: 'Less than', group: 'Comparison' },
-  { label: '<=', detail: 'Less than or equal', group: 'Comparison' },
-  { label: 'AND', detail: 'Both conditions are true', group: 'Logical' },
-  { label: 'OR', detail: 'Either condition is true', group: 'Logical' },
-  { label: 'NOT', detail: 'Negate a condition', group: 'Logical' },
-  { label: '(', detail: 'Open group', group: 'Grouping' },
-  { label: ')', detail: 'Close group', group: 'Grouping' },
 ]
 
 const initialInputBindings = {
@@ -1968,6 +1948,11 @@ function DecisionEditorPage() {
                             </div>
                           </section>
                         </div>
+                        <button
+                          type="button"
+                          className="condition-variable-picker-add"
+                          onClick={() => window.open('/custom', '_blank', 'noopener,noreferrer')}
+                        >＋ Add Variable</button>
                       </div>
                     )}
                   </div>
@@ -2631,26 +2616,34 @@ function DecisionEditorPage() {
   }
 
   const decisionTableOptions = (nodeId, category, query = '') => {
-    const upstreamOptions = getUpstreamNodes(nodeId).flatMap((node) => (node.outputs || []).map((output) => ({
-      category: 'upstream',
-      kind: 'variable',
-      label: `${node.label} · ${output}`,
-      detail: `Upstream output · ${node.label}`,
-    })))
+    const temporaryOptions = [
+      ...temporaryConditionVariables.map((variable) => ({
+        category: 'temporary',
+        kind: 'variable',
+        label: `t.${variable.name}`,
+        detail: `${variable.source} · ${variable.type}`,
+      })),
+      ...getUpstreamNodes(nodeId).flatMap((node) => (node.outputs || []).map((output) => ({
+        category: 'temporary',
+        kind: 'variable',
+        label: `t.${output}`,
+        detail: node.label,
+      }))),
+    ]
     const options = [
       ...customConditionVariables.map((variable) => ({
         category: 'custom',
         kind: 'variable',
-        label: variable.name,
+        label: `c.${variable.name}`,
         detail: variable.type,
       })),
       ...featureVariables.map((variable) => ({
         category: 'feature',
         kind: 'variable',
-        label: `Feature · ${variable.name}`,
+        label: `f.${variable.name}`,
         detail: `${variable.component} · ${variable.type}`,
       })),
-      ...upstreamOptions,
+      ...temporaryOptions,
       ...decisionTableFunctions.map((item) => ({
         category: 'function',
         kind: 'function',
@@ -2658,17 +2651,16 @@ function DecisionEditorPage() {
         detail: item.syntax,
         description: item.description,
       })),
-      ...decisionTableOperators.map((operator) => ({
-        category: 'operator',
-        kind: 'operator',
-        label: operator.label,
-        detail: operator.detail,
-        description: operator.group,
+      ...['AND', 'OR', 'NOT', 'IN', 'TRUE', 'FALSE', 'NULL'].map((keyword) => ({
+        category: 'keyword',
+        kind: 'keyword',
+        label: keyword,
+        detail: 'Keyword',
       })),
     ]
     const normalizedQuery = query.trim().toLowerCase()
     return options.filter((option) => (
-      (normalizedQuery ? ['custom', 'feature'].includes(option.category) : category === 'all' || option.category === category)
+      (normalizedQuery ? ['custom', 'feature', 'temporary'].includes(option.category) : option.category === category)
       && (!normalizedQuery || `${option.label} ${option.detail}`.toLowerCase().includes(normalizedQuery))
     ))
   }
@@ -2679,7 +2671,7 @@ function DecisionEditorPage() {
     const pickerOpen = decisionTablePicker?.nodeId === nodeId
       && decisionTablePicker?.rowId === row.id
       && decisionTablePicker?.columnId === column.id
-    const category = decisionTablePicker?.category || 'all'
+    const category = decisionTablePicker?.category || 'feature'
     const pickerOptions = pickerOpen
       ? decisionTableOptions(nodeId, category, decisionTablePicker.query || '')
       : []
@@ -2700,8 +2692,8 @@ function DecisionEditorPage() {
                   <button onClick={() => removeDecisionTablePart(nodeId, row.id, column.id, partIndex)}>×</button>
                 </span>
               ) : (
-                <span className={`decision-table-part ${part.kind}`} key={`${part.kind}-${part.label}-${partIndex}`}>
-                  <i>{part.kind === 'function' ? 'ƒ' : part.kind === 'operator' ? '±' : part.label.startsWith('Feature') ? 'F' : part.category === 'upstream' ? 'N' : 'C'}</i>
+                <span className={`decision-table-part ${part.kind} ${part.category || ''}`} key={`${part.kind}-${part.label}-${partIndex}`}>
+                  <i>{part.kind === 'function' ? 'ƒ' : part.kind === 'keyword' ? 'SQL' : part.category === 'feature' ? 'F' : part.category === 'temporary' ? 'T' : 'C'}</i>
                   <b>{part.label}</b>
                   <button onClick={() => removeDecisionTablePart(nodeId, row.id, column.id, partIndex)}>×</button>
                 </span>
@@ -2710,13 +2702,13 @@ function DecisionEditorPage() {
             <button
               className="decision-table-append-part"
               aria-label="Add expression module"
-              onClick={() => setDecisionTablePicker({ nodeId, rowId: row.id, columnId: column.id, category: 'all', query: '' })}
+              onClick={() => setDecisionTablePicker({ nodeId, rowId: row.id, columnId: column.id, category: 'feature', query: '' })}
             >＋</button>
           </div>
         ) : (
           <button
             className="decision-table-empty-cell"
-            onClick={() => setDecisionTablePicker({ nodeId, rowId: row.id, columnId: column.id, category: 'all', query: '' })}
+            onClick={() => setDecisionTablePicker({ nodeId, rowId: row.id, columnId: column.id, category: 'feature', query: '' })}
           >
             <span>Enter expression</span>
           </button>
@@ -2738,7 +2730,7 @@ function DecisionEditorPage() {
                 {decisionTablePickerCategories.map((item) => (
                   <button
                     key={item.id}
-                    className={category === item.id ? 'active' : ''}
+                    className={`${category === item.id ? 'active' : ''}${item.separated ? ' separated' : ''}`}
                     onClick={() => setDecisionTablePicker((current) => ({ ...current, category: item.id }))}
                   >
                     <i className={item.id}>{item.icon}</i>
@@ -2748,27 +2740,7 @@ function DecisionEditorPage() {
                 ))}
               </nav>
               <section>
-                <small>{decisionTablePicker.query ? 'Search Result' : category === 'all' ? 'Recent used' : decisionTablePickerCategories.find((item) => item.id === category)?.label}</small>
-                {!decisionTablePicker.query && (category === 'all' || category === 'custom') && (
-                  <div className="decision-table-constants">
-                    {['Number', 'Text'].map((valueType) => (
-                      <button
-                        key={valueType}
-                        onClick={() => {
-                          appendDecisionTablePart(nodeId, row.id, column.id, {
-                            kind: 'literal',
-                            valueType,
-                            value: '',
-                            label: valueType,
-                          })
-                          setDecisionTablePicker(null)
-                        }}
-                      >
-                        <i>#</i><span>{valueType}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <small>{decisionTablePicker.query ? 'Search Result' : decisionTablePickerCategories.find((item) => item.id === category)?.label}</small>
                 {pickerOptions.map((option) => (
                   <button
                     className="decision-table-picker-option"
@@ -2778,7 +2750,7 @@ function DecisionEditorPage() {
                       setDecisionTablePicker(null)
                     }}
                   >
-                    <i className={option.category}>{option.kind === 'function' ? 'ƒ' : option.category === 'feature' ? 'F' : option.category === 'upstream' ? 'N' : option.category === 'operator' ? '±' : 'C'}</i>
+                    <i className={option.category}>{option.kind === 'function' ? 'ƒ' : option.kind === 'keyword' ? 'SQL' : option.category === 'feature' ? 'F' : option.category === 'temporary' ? 'T' : 'C'}</i>
                     <span><strong>{option.label}</strong><small>{option.description || option.detail}</small></span>
                   </button>
                 ))}
@@ -2788,8 +2760,8 @@ function DecisionEditorPage() {
             <button
               className="decision-table-add-variable"
               onClick={() => {
-                appendDecisionTablePart(nodeId, row.id, column.id, { kind: 'literal', valueType: 'Text', value: '', label: 'Custom value' })
                 setDecisionTablePicker(null)
+                window.open('/custom', '_blank', 'noopener,noreferrer')
               }}
             >＋ Add Variable</button>
           </div>

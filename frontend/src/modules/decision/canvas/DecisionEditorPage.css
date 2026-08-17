@@ -2185,16 +2185,55 @@
   color: #6539bd;
 }
 
+.decision-table-picker-content nav button.separated {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0 0 8px 8px;
+}
+
 .decision-table-picker-content nav i {
   display: grid;
   width: 22px;
   height: 22px;
   place-items: center;
   border-radius: 6px;
-  background: #f0f2f5;
-  color: #68717f;
+  background: #ecfff4;
+  color: #13a765;
   font-size: 9px;
   font-style: normal;
+}
+
+.decision-table-picker-content nav i.feature,
+.decision-table-picker-option > i.feature {
+  background: #f0ebff;
+  color: #7447ef;
+}
+
+.decision-table-picker-content nav i.custom,
+.decision-table-picker-option > i.custom {
+  background: #ecfff4;
+  color: #13a765;
+}
+
+.decision-table-picker-content nav i.temporary,
+.decision-table-picker-option > i.temporary {
+  background: #eaf8ff;
+  color: #179bdb;
+}
+
+.decision-table-picker-content nav i.function,
+.decision-table-picker-option > i.function {
+  background: #fff0fa;
+  color: #e34ab4;
+}
+
+.decision-table-picker-content nav i.keyword,
+.decision-table-picker-option > i.keyword {
+  width: 25px;
+  background: #eafaff;
+  color: #16a7c9;
+  font-size: 6px;
 }
 
 .decision-table-picker-content nav em {
@@ -2290,6 +2329,18 @@
 }
 
 .decision-table-add-variable {
+  height: 40px;
+  border: 0;
+  border-top: 1px solid #eceef1;
+  background: #fff;
+  color: #7541dc;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.condition-variable-picker-add {
+  width: 100%;
   height: 40px;
   border: 0;
   border-top: 1px solid #eceef1;
