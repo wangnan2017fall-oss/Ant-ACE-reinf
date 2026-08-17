@@ -11,6 +11,7 @@ import DataSourceDetailPage from '../modules/data-asset/data-source/DataSourceDe
 import DataSourcePage from '../modules/data-asset/data-source/DataSourcePage'
 import FeatureDetailPage from '../modules/data-asset/feature/FeatureDetailPage'
 import FeaturePage from '../modules/data-asset/feature/FeaturePage'
+import CustomPage from '../modules/data-asset/custom/CustomPage'
 import DecisionEditorPage from '../modules/decision/canvas/DecisionEditorPage'
 import DecisionDetailPage from '../modules/decision/detail/DecisionDetailPage'
 import DecisionPage from '../modules/decision/list/DecisionPage'
@@ -37,6 +38,7 @@ function AppRoutes() {
       <Route path="/data-connector/:id" element={<DataConnectorDetailPage />} />
       <Route path="/feature" element={<FeaturePage />} />
       <Route path="/feature/:id" element={<FeatureDetailPage />} />
+      <Route path="/custom" element={<CustomPage />} />
       <Route path="/policy" element={<PolicyPage />} />
       <Route path="/policy/:id/edit" element={<PolicyCanvasEditorPage />} />
       <Route path="/policy/:id/canvas" element={<PolicyDetailPage />} />
