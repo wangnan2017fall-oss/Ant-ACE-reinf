@@ -1,0 +1,67 @@
+.custom-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(18, 12, 43, 0.34);
+  backdrop-filter: blur(2px);
+}
+
+.custom-create-modal {
+  width: min(520px, calc(100vw - 40px));
+  overflow: hidden;
+  border: 1px solid #e5e0ec;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(35, 22, 67, 0.22);
+}
+
+.custom-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px 26px 20px;
+  border-bottom: 1px solid #eeeaf3;
+}
+
+.custom-modal-header h2 { margin: 0; color: #171526; font-size: 21px; }
+.custom-modal-header p { margin: 6px 0 0; color: #9892a8; font-size: 13px; }
+.custom-modal-header > button { border: 0; background: transparent; color: #716b7d; font-size: 25px; cursor: pointer; }
+
+.custom-modal-form { display: grid; gap: 18px; padding: 24px 26px 26px; }
+.custom-modal-form label { display: grid; gap: 8px; color: #3d374b; font-size: 14px; font-weight: 600; }
+.custom-modal-form label b { color: #e34f62; }
+.custom-modal-form input,
+.custom-modal-form select,
+.custom-modal-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dcd7e5;
+  border-radius: 9px;
+  background: #fff;
+  padding: 11px 12px;
+  color: #282333;
+  font: inherit;
+  font-weight: 400;
+  outline: none;
+}
+.custom-modal-form textarea { min-height: 94px; resize: vertical; }
+.custom-modal-form input:focus,
+.custom-modal-form select:focus,
+.custom-modal-form textarea:focus { border-color: #7d3cff; box-shadow: 0 0 0 3px rgba(125, 60, 255, 0.1); }
+.custom-modal-form small { color: #aaa4b5; font-size: 12px; font-weight: 400; }
+.custom-form-error { margin: -5px 0 0; color: #d74458; font-size: 13px; }
+
+.custom-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 26px;
+  border-top: 1px solid #eeeaf3;
+  background: #fbfafe;
+}
+.custom-modal-actions button { min-width: 92px; border-radius: 9px; padding: 10px 18px; font-weight: 700; cursor: pointer; }
+.custom-modal-actions .secondary { border: 1px solid #dcd7e5; background: #fff; color: #514a5e; }
+.custom-modal-actions .primary { border: 1px solid #7d3cff; background: #7d3cff; color: #fff; }
