@@ -12,6 +12,7 @@ import DataSourcePage from '../modules/data-asset/data-source/DataSourcePage'
 import FeatureDetailPage from '../modules/data-asset/feature/FeatureDetailPage'
 import FeaturePage from '../modules/data-asset/feature/FeaturePage'
 import CustomerPage from '../modules/data-asset/customer/CustomerPage'
+import CustomDetailPage from '../modules/data-asset/customer/CustomDetailPage'
 import DecisionEditorPage from '../modules/decision/canvas/DecisionEditorPage'
 import DecisionDetailPage from '../modules/decision/detail/DecisionDetailPage'
 import DecisionPage from '../modules/decision/list/DecisionPage'
@@ -39,6 +40,7 @@ function AppRoutes() {
       <Route path="/feature/:id" element={<FeatureDetailPage />} />
       <Route path="/customer" element={<CustomerPage />} />
       <Route path="/custom" element={<CustomerPage />} />
+      <Route path="/custom/:id" element={<CustomDetailPage />} />
       <Route path="/policy" element={<PolicyPage />} />
       <Route path="/policy/:id/edit" element={<PolicyCanvasEditorPage />} />
       <Route path="/policy/:id/canvas" element={<PolicyCanvasEditorPage />} />
