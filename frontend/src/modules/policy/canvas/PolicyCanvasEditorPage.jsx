@@ -72,7 +72,7 @@ function PolicyCanvasEditorPage() {
     <div className="policy-flow-editor">
       <aside className="policy-flow-library">
         <div className="policy-flow-side-head">
-          <button onClick={() => navigate(`/policy/${id}?tab=canvas`)} aria-label="Close">×</button>
+          <button onClick={() => navigate(`/policy/${id}`)} aria-label="Close">×</button>
           <button aria-label="Collapse sidebar">◫</button>
         </div>
         <div className="policy-flow-meta"><strong>kwai_disburse_policy</strong><span>{activeVersion}</span></div>

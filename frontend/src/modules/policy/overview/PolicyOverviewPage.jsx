@@ -162,7 +162,7 @@ function PolicyOverviewPage() {
                       <td><span className={`policy-version-status ${item.status.toLowerCase()}`}><i />{item.status}</span></td>
                       <td>
                         <div className="policy-version-actions">
-                          <Link to={`/policy/${id}/canvas?version=${item.version}`}>Details</Link>
+                          <Link to={`/policy/${id}/edit?version=${item.version}`}>Details</Link>
                           <button onClick={() => changeTab('traffic')}>Adjust Traffic</button>
                           <button className="more" aria-label={`More actions for ${item.version}`}>•••</button>
                         </div>

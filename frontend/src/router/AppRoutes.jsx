@@ -15,7 +15,6 @@ import CustomerPage from '../modules/data-asset/customer/CustomerPage'
 import DecisionEditorPage from '../modules/decision/canvas/DecisionEditorPage'
 import DecisionDetailPage from '../modules/decision/detail/DecisionDetailPage'
 import DecisionPage from '../modules/decision/list/DecisionPage'
-import PolicyDetailPage from '../modules/policy/detail/PolicyDetailPage'
 import PolicyOverviewPage from '../modules/policy/overview/PolicyOverviewPage'
 import PolicyCanvasEditorPage from '../modules/policy/canvas/PolicyCanvasEditorPage'
 import PolicyPage from '../modules/policy/list/PolicyPage'
@@ -42,7 +41,7 @@ function AppRoutes() {
       <Route path="/custom" element={<CustomerPage />} />
       <Route path="/policy" element={<PolicyPage />} />
       <Route path="/policy/:id/edit" element={<PolicyCanvasEditorPage />} />
-      <Route path="/policy/:id/canvas" element={<PolicyDetailPage />} />
+      <Route path="/policy/:id/canvas" element={<PolicyCanvasEditorPage />} />
       <Route path="/policy/:id" element={<PolicyOverviewPage />} />
       <Route path="/testing" element={<TestingPage />} />
       <Route path="/case-tracker" element={<CaseTrackerPage />} />
