@@ -1859,6 +1859,33 @@
   padding: 16px 20px 22px;
 }
 
+.parameter-input-group + .parameter-input-group {
+  margin-top: 20px;
+  border-top: 1px solid #edf0f4;
+  padding-top: 18px;
+}
+
+.parameter-input-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 14px 10px;
+  color: #273143;
+  font-size: 14px;
+}
+
+.parameter-input-group h3 span {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 10px;
+  background: #f0eaff;
+  color: #7c3aed;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .parameter-table {
   width: 100%;
   border-collapse: collapse;

@@ -5,6 +5,7 @@ import './DecisionEditorPage.css'
 const nodeTypes = [
   { type: 'ifElse', label: 'If-Else', icon: '≷', color: '#d8c6ff', group: 'basic' },
   { type: 'action', label: 'Assignment', icon: '▤', color: '#ffd2c5', group: 'basic' },
+  { type: 'nodeGroup', label: 'Node Group', icon: '▢', color: '#c8f4f1', group: 'basic' },
   { type: 'block', label: 'Hard Rules', icon: '⊘', color: '#ffc8ce', group: 'business' },
   { type: 'decisionTable', label: 'Decision Table', icon: '▦', color: '#c9ddff', group: 'business' },
   { type: 'cross', label: 'Cross', icon: '⊞', color: '#bfeaf5', group: 'business' },
@@ -42,6 +43,13 @@ const customConditionVariables = [
 const temporaryConditionVariables = [
   { name: 'risk_score', type: 'number', source: 'Current Decision' },
   { name: 'customer_tier', type: 'string', source: 'Current Decision' },
+]
+
+const policyDecisionTemporaryVariables = [
+  { name: 'approved', type: 'boolean', decision: 'credit_eligibility_decision', version: 'V2.1.0', valueKind: 'Output' },
+  { name: 'customer_segment', type: 'string', decision: 'credit_eligibility_decision', version: 'V2.1.0', valueKind: 'Temporary' },
+  { name: 'credit_limit', type: 'number', decision: 'limit_pricing_decision', version: 'V1.4.2', valueKind: 'Output' },
+  { name: 'fraud_score', type: 'number', decision: 'anti_fraud_decision', version: 'V0.9.0', valueKind: 'Temporary' },
 ]
 
 const localVariables = [
@@ -106,6 +114,8 @@ const decisionVersionCatalog = {
 function nodeSize(node) {
   return node.type === 'start' || node.type === 'end'
     ? { width: 132, height: 84 }
+    : node.type === 'nodeGroup'
+      ? { width: 360, height: 220 }
     : node.type === 'ifElse' || node.type === 'block'
       ? { width: 270, height: 154 }
     : node.type === 'decisionTable' || node.type === 'cross'
@@ -265,6 +275,7 @@ function DecisionEditorPage() {
     },
   })
   const [decisionTablePicker, setDecisionTablePicker] = useState(null)
+  const [decisionTableColumnPicker, setDecisionTableColumnPicker] = useState(null)
   const [decisionTableExpanded, setDecisionTableExpanded] = useState(false)
   const [crossTables, setCrossTables] = useState({})
 
@@ -359,6 +370,11 @@ function DecisionEditorPage() {
       status: 'warning',
       inputs: ['Select input'],
       outputs: [`${definition.type}_result`],
+    }
+    if (definition.type === 'nodeGroup') {
+      node.status = ''
+      node.inputs = []
+      node.outputs = []
     }
     commitNodes((current) => [...current, node])
     setInputBindings((current) => ({
@@ -1825,6 +1841,7 @@ function DecisionEditorPage() {
             detail: `${variable.source} · ${variable.type}`,
             value: `Temporary · ${variable.name}`,
             icon: 'T',
+            scope: 'current',
           })),
           ...upstreamNodes.flatMap((node) => (node.outputs || []).map((output) => ({
             category: 'temporary',
@@ -1832,7 +1849,17 @@ function DecisionEditorPage() {
             detail: node.label,
             value: `${node.label} · ${output}`,
             icon: 'T',
+            scope: 'current',
           }))),
+          ...policyDecisionTemporaryVariables.map((variable) => ({
+            category: 'temporary',
+            label: `t.${variable.name}`,
+            detail: `${variable.decision} ${variable.version} · ${variable.valueKind} · ${variable.type}`,
+            value: `${variable.decision} · ${variable.name}`,
+            icon: 'T',
+            scope: 'policy',
+            decision: variable.decision,
+          })),
           ...decisionTableFunctions.map((item) => ({
             category: 'function',
             label: item.name,
@@ -1849,7 +1876,7 @@ function DecisionEditorPage() {
           })),
         ]
         const visibleLeftPickerOptions = leftPickerOptions.filter((option) => (
-          option.category === leftPickerCategory
+          (leftPickerQuery || option.category === leftPickerCategory)
           && (!leftPickerQuery || `${option.label} ${option.detail}`.toLowerCase().includes(leftPickerQuery))
         ))
         const chooseLeftVariable = (nextVariable) => {
@@ -1937,13 +1964,19 @@ function DecisionEditorPage() {
                           <section className="condition-variable-picker-results">
                             <strong>{leftPickerQuery ? 'Search Result' : leftPickerCategories.find((item) => item.id === leftPickerCategory)?.label}</strong>
                             <div className="condition-variable-option-list">
-                              {visibleLeftPickerOptions.map((option) => (
-                                <button type="button" key={`${option.category}-${option.label}`} onClick={() => chooseLeftVariable(option.value)}>
+                              {visibleLeftPickerOptions.map((option, optionIndex) => [
+                                option.scope === 'policy' && visibleLeftPickerOptions[optionIndex - 1]?.decision !== option.decision && (
+                                  <div className="policy-temporary-divider" key="condition-policy-divider">
+                                    <span>{option.decision}</span>
+                                    <small>Outside Temporary</small>
+                                  </div>
+                                ),
+                                <button type="button" key={`${option.category}-${option.label}-${option.scope || 'default'}`} onClick={() => chooseLeftVariable(option.value)}>
                                   <i className={option.category}>{option.icon}</i>
                                   <span><b>{option.label}</b><small>{option.detail}</small></span>
                                   {row.variable === option.value && <em>✓</em>}
-                                </button>
-                              ))}
+                                </button>,
+                              ])}
                               {!visibleLeftPickerOptions.length && <p>No matching variables</p>}
                             </div>
                           </section>
@@ -2028,12 +2061,11 @@ function DecisionEditorPage() {
   )}
 
   const actionPickerCategories = [
-    { id: 'all', label: 'All', icon: '⌘' },
-    { id: 'custom', label: 'Custom', icon: 'C' },
     { id: 'feature', label: 'Feature', icon: 'F' },
-    { id: 'local', label: 'Upstream Output', icon: 'N' },
-    { id: 'function', label: 'Function', icon: 'ƒ' },
-    { id: 'constant', label: 'Constant', icon: '#' },
+    { id: 'custom', label: 'Custom', icon: 'C' },
+    { id: 'temporary', label: 'Temporary', icon: 'T' },
+    { id: 'function', label: 'Function', icon: 'ƒ', separated: true },
+    { id: 'keyword', label: 'Keyword', icon: 'SQL' },
   ]
 
   const actionFunctionOptions = [
@@ -2060,15 +2092,40 @@ function DecisionEditorPage() {
         dataType: normalizeActionDataType(variable.type),
         operand: { kind: 'variable', value: `Feature · ${variable.name}`, sourceType: 'feature' },
       })),
+      ...temporaryConditionVariables.map((variable) => ({
+        category: 'temporary',
+        label: variable.name,
+        detail: `${variable.source} · ${variable.type}`,
+        dataType: normalizeActionDataType(variable.type),
+        operand: { kind: 'variable', value: `Temporary · ${variable.name}`, sourceType: 'temporary' },
+        scope: 'current',
+      })),
       ...getUpstreamNodes(selectedNode.id).flatMap((node) => (
         (node.outputs || []).map((output) => ({
-          category: 'local',
+          category: 'temporary',
           label: output,
           detail: node.label,
           dataType: inferActionTargetDataType(`${node.label} · ${output}`),
-          operand: { kind: 'variable', value: `${node.label} · ${output}`, sourceType: 'local' },
+          operand: { kind: 'variable', value: `${node.label} · ${output}`, sourceType: 'temporary' },
+          scope: 'current',
         }))
       )),
+      ...policyDecisionTemporaryVariables.map((variable) => ({
+        category: 'temporary',
+        label: variable.name,
+        detail: `${variable.decision} ${variable.version} · ${variable.valueKind} · ${variable.type}`,
+        dataType: normalizeActionDataType(variable.type),
+        operand: { kind: 'variable', value: `${variable.decision} · ${variable.name}`, sourceType: 'temporary' },
+        scope: 'policy',
+        decision: variable.decision,
+      })),
+      ...['AND', 'OR', 'NOT', 'IN', 'TRUE', 'FALSE', 'NULL'].map((keyword) => ({
+        category: 'keyword',
+        label: keyword,
+        detail: 'Keyword',
+        dataType: 'String',
+        operand: { kind: 'variable', value: keyword, sourceType: 'keyword' },
+      })),
     ]
     : []
 
@@ -2192,7 +2249,7 @@ function DecisionEditorPage() {
 
   const renderActionTargetPicker = (nodeId, operation) => {
     if (actionTargetPicker?.rowId !== operation.id) return null
-    const category = actionTargetPicker.category || 'feature'
+    const category = actionTargetPicker.category || 'temporary'
     const query = (actionTargetPicker.query || '').trim().toLowerCase()
     const options = actionPickerOptions.map((option) => ({
         category: option.category,
@@ -2200,9 +2257,11 @@ function DecisionEditorPage() {
         detail: option.detail,
         dataType: option.dataType,
         target: option.operand.value,
+        scope: option.scope,
       })).filter((option, index, all) => (
-      ['custom', 'feature', 'local'].includes(option.category)
-      && (query ? ['custom', 'feature'].includes(option.category) : option.category === category)
+      ['temporary', 'keyword'].includes(option.category)
+      && option.scope !== 'policy'
+      && (query ? ['temporary', 'keyword'].includes(option.category) : option.category === category)
       && (!query || `${option.label} ${option.detail}`.toLowerCase().includes(query))
       && all.findIndex((item) => item.target === option.target) === index
     ))
@@ -2212,9 +2271,9 @@ function DecisionEditorPage() {
           <span>⌕</span>
           <input
             autoFocus
-            aria-label="Search Feature or Custom variables"
+            aria-label="Search Temporary or Keyword"
             value={actionTargetPicker.query || ''}
-            placeholder="Search Feature or Custom by variable name"
+            placeholder="Search Temporary or Keyword"
             onChange={(event) => setActionTargetPicker((current) => ({ ...current, query: event.target.value }))}
           />
           <button onClick={() => setActionTargetPicker(null)}>×</button>
@@ -2222,15 +2281,14 @@ function DecisionEditorPage() {
         <div className="action-picker-body">
           <nav className="action-picker-categories">
             {[
-              { id: 'custom', label: 'Custom', icon: 'C' },
-              { id: 'feature', label: 'Feature', icon: 'F' },
-              { id: 'local', label: 'Upstream Output', icon: 'N' },
+              { id: 'temporary', label: 'Temporary', icon: 'T' },
+              { id: 'keyword', label: 'Keyword', icon: 'SQL', separated: true },
             ].map((item) => (
               <button
-                className={category === item.id ? 'active' : ''}
+                className={`${category === item.id ? 'active' : ''}${item.separated ? ' separated' : ''}`}
                 key={item.id}
                 onClick={() => setActionTargetPicker((current) => ({ ...current, category: item.id }))}
-              ><i>{item.icon}</i>{item.label}</button>
+              ><i className={item.id}>{item.icon}</i>{item.label}</button>
             ))}
           </nav>
           <div className="action-picker-results">
@@ -2238,7 +2296,7 @@ function DecisionEditorPage() {
               <small>{query ? 'Search Result' : category}</small>
               {options.map((option) => (
                 <button key={option.target} onClick={() => updateActionTarget(nodeId, operation.id, option.target, { dataType: option.dataType })}>
-                  <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'custom' ? 'C' : 'N'}</i>
+                  <i className={option.category}>{option.category === 'keyword' ? 'SQL' : 'T'}</i>
                   <span><strong>{option.label}</strong><small>{option.detail}</small></span>
                 </button>
               ))}
@@ -2246,16 +2304,24 @@ function DecisionEditorPage() {
             </section>
           </div>
         </div>
+        <button
+          className="action-picker-add-variable"
+          onClick={() => {
+            setActionTargetPicker(null)
+            window.open('/custom', '_blank', 'noopener,noreferrer')
+          }}
+        >＋ Add Variable</button>
       </div>
     )
   }
 
   const openActionOperandPicker = (operation, path) => {
+    setActionTargetPicker(null)
     setActionExpressionPicker({
       rowId: operation.id,
       kind: 'operand',
       path: path.join('.'),
-      category: 'all',
+      category: 'feature',
       query: '',
     })
   }
@@ -2274,17 +2340,16 @@ function DecisionEditorPage() {
 
   const renderActionOperandPicker = (nodeId, operation, path) => {
     if (!isActionPickerOpen(operation, path)) return null
-    const category = actionExpressionPicker.category || 'all'
+    const category = actionExpressionPicker.category || 'feature'
     const query = (actionExpressionPicker.query || '').trim().toLowerCase()
     const currentOperand = getActionOperandAtPath(operation, path)
     const variableOptions = actionPickerOptions.filter((option) => (
-      (query ? ['custom', 'feature'].includes(option.category) : category === 'all' || category === option.category)
+      (query ? ['custom', 'feature', 'temporary'].includes(option.category) : category === option.category)
       && (!query || `${option.label} ${option.detail}`.toLowerCase().includes(query))
     ))
     const functionOptions = actionFunctionOptions.filter((option) => (
-      !query && (category === 'all' || category === 'function')
+      !query && category === 'function'
     ))
-    const showConstants = !query && (category === 'all' || category === 'constant')
     const chooseOperand = (operand) => setActionOperandAtPath(nodeId, operation.id, path, operand)
     return (
       <div className="action-value-picker">
@@ -2292,9 +2357,9 @@ function DecisionEditorPage() {
           <span>⌕</span>
           <input
             autoFocus
-            aria-label="Search Feature or Custom variables"
+            aria-label="Search variables"
             value={actionExpressionPicker.query || ''}
-            placeholder="Search Feature or Custom by variable name"
+            placeholder="Search variable"
             onChange={(event) => setActionExpressionPicker((current) => ({ ...current, query: event.target.value }))}
           />
           <button onClick={() => setActionExpressionPicker(null)}>×</button>
@@ -2303,29 +2368,35 @@ function DecisionEditorPage() {
           <nav className="action-picker-categories">
             {actionPickerCategories.map((item) => (
               <button
-                className={category === item.id ? 'active' : ''}
+                className={`${category === item.id ? 'active' : ''}${item.separated ? ' separated' : ''}`}
                 key={item.id}
                 onClick={() => setActionExpressionPicker((current) => ({ ...current, category: item.id }))}
               >
-                <i>{item.icon}</i>{item.label}
+                <i className={item.id}>{item.icon}</i>{item.label}
               </button>
             ))}
           </nav>
           <div className="action-picker-results">
             {variableOptions.length > 0 && (
               <section>
-                <small>{query ? 'Search Result' : category === 'all' ? 'Variables' : actionPickerCategories.find((item) => item.id === category)?.label}</small>
-                {variableOptions.map((option) => (
+                <small>{query ? 'Search Result' : actionPickerCategories.find((item) => item.id === category)?.label}</small>
+                {variableOptions.map((option, optionIndex) => [
+                  option.scope === 'policy' && variableOptions[optionIndex - 1]?.decision !== option.decision && (
+                    <div className="policy-temporary-divider" key="action-policy-divider">
+                      <span>{option.decision}</span>
+                      <small>Outside Temporary</small>
+                    </div>
+                  ),
                   <button
                     draggable
-                    key={`${option.category}-${option.label}`}
+                    key={`${option.category}-${option.label}-${option.scope || 'default'}`}
                     onDragStart={() => { actionModuleDragRef.current = option.operand }}
                     onClick={() => chooseOperand(option.operand)}
-                >
-                    <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'custom' ? 'C' : 'N'}</i>
+                  >
+                    <i className={option.category}>{option.category === 'feature' ? 'F' : option.category === 'custom' ? 'C' : option.category === 'temporary' ? 'T' : 'SQL'}</i>
                     <span><strong>{option.label}</strong><small>{option.detail}</small></span>
-                  </button>
-                ))}
+                  </button>,
+                ])}
               </section>
             )}
             {functionOptions.length > 0 && (
@@ -2350,24 +2421,16 @@ function DecisionEditorPage() {
                 ))}
               </section>
             )}
-            {showConstants && (
-              <section>
-                <small>Constants</small>
-                <div className="action-picker-constant-modules">
-                  {['Number', 'String', 'Boolean', 'Null'].map((type) => (
-                    <button
-                      draggable
-                      key={type}
-                      onDragStart={() => { actionModuleDragRef.current = createActionLiteral(type) }}
-                      onClick={() => chooseOperand(createActionLiteral(type))}
-                    ><i className="constant">#</i><strong>{type}</strong></button>
-                  ))}
-                </div>
-              </section>
-            )}
-            {!variableOptions.length && !functionOptions.length && !showConstants && <p>No matching modules</p>}
+            {!variableOptions.length && !functionOptions.length && <p>No matching modules</p>}
           </div>
         </div>
+        <button
+          className="action-picker-add-variable"
+          onClick={() => {
+            setActionExpressionPicker(null)
+            window.open('/custom', '_blank', 'noopener,noreferrer')
+          }}
+        >＋ Add Variable</button>
       </div>
     )
   }
@@ -2411,7 +2474,7 @@ function DecisionEditorPage() {
         </span>
       )
     }
-    const sourceType = operand?.sourceType || (operand?.value?.startsWith('Feature ·') ? 'feature' : operand?.value?.startsWith('Output ·') ? 'output' : 'local')
+    const sourceType = operand?.sourceType || (operand?.value?.startsWith('Feature ·') ? 'feature' : operand?.value?.startsWith('Custom ·') ? 'custom' : 'temporary')
     if (!operand) {
       return (
         <span
@@ -2427,7 +2490,7 @@ function DecisionEditorPage() {
         >
           <input
             aria-label={`${operation.target || 'Output'} constant value`}
-            placeholder="Enter constant"
+            placeholder="Enter Expression"
             onChange={(event) => {
               const value = event.target.value
               const valueType = value !== '' && !Number.isNaN(Number(value)) ? 'Number' : 'String'
@@ -2462,7 +2525,7 @@ function DecisionEditorPage() {
           onClick={() => openActionOperandPicker(operation, path)}
         >
           {operand?.kind === 'variable'
-            ? <><i className={sourceType}>{sourceType === 'feature' ? 'F' : sourceType === 'output' ? 'O' : 'L'}</i>{operand.value}</>
+            ? <><i className={sourceType}>{sourceType === 'feature' ? 'F' : sourceType === 'custom' ? 'C' : sourceType === 'keyword' ? 'SQL' : 'T'}</i>{operand.value}</>
             : '＋ Select or drop module'}
         </button>
         {renderActionOperandPicker(nodeId, operation, path)}
@@ -2622,13 +2685,23 @@ function DecisionEditorPage() {
         kind: 'variable',
         label: `t.${variable.name}`,
         detail: `${variable.source} · ${variable.type}`,
+        scope: 'current',
       })),
       ...getUpstreamNodes(nodeId).flatMap((node) => (node.outputs || []).map((output) => ({
         category: 'temporary',
         kind: 'variable',
         label: `t.${output}`,
         detail: node.label,
+        scope: 'current',
       }))),
+      ...policyDecisionTemporaryVariables.map((variable) => ({
+        category: 'temporary',
+        kind: 'variable',
+        label: `t.${variable.name}`,
+        detail: `${variable.decision} ${variable.version} · ${variable.valueKind} · ${variable.type}`,
+        scope: 'policy',
+        decision: variable.decision,
+      })),
     ]
     const options = [
       ...customConditionVariables.map((variable) => ({
@@ -2663,6 +2736,76 @@ function DecisionEditorPage() {
       (normalizedQuery ? ['custom', 'feature', 'temporary'].includes(option.category) : option.category === category)
       && (!normalizedQuery || `${option.label} ${option.detail}`.toLowerCase().includes(normalizedQuery))
     ))
+  }
+
+  const renderDecisionTableColumnPicker = (nodeId, column) => {
+    if (decisionTableColumnPicker?.nodeId !== nodeId || decisionTableColumnPicker?.columnId !== column.id) return null
+    const conditionColumn = column.kind === 'condition'
+    const categories = conditionColumn
+      ? decisionTablePickerCategories
+      : [{ id: 'temporary', label: 'Temporary', icon: 'T' }]
+    const category = decisionTableColumnPicker.category || (conditionColumn ? 'feature' : 'temporary')
+    const options = decisionTableOptions(nodeId, category, decisionTableColumnPicker.query || '')
+      .filter((option) => conditionColumn || (option.category === 'temporary' && option.scope !== 'policy'))
+    return (
+      <div className="decision-table-picker decision-table-column-picker" onClick={(event) => event.stopPropagation()}>
+        <label>
+          <span>⌕</span>
+          <input
+            autoFocus
+            value={decisionTableColumnPicker.query || ''}
+            placeholder="Search variable"
+            onChange={(event) => setDecisionTableColumnPicker((current) => ({ ...current, query: event.target.value }))}
+          />
+          <button onClick={() => setDecisionTableColumnPicker(null)}>×</button>
+        </label>
+        <div className="decision-table-picker-content">
+          <nav>
+            {categories.map((item) => (
+              <button
+                key={item.id}
+                className={`${category === item.id ? 'active' : ''}${item.separated ? ' separated' : ''}`}
+                onClick={() => setDecisionTableColumnPicker((current) => ({ ...current, category: item.id }))}
+              >
+                <i className={item.id}>{item.icon}</i>
+                <span>{item.label}</span>
+                {item.badge && <em>{item.badge}</em>}
+              </button>
+            ))}
+          </nav>
+          <section>
+            <small>{decisionTableColumnPicker.query ? 'Search Result' : categories.find((item) => item.id === category)?.label}</small>
+            {options.map((option, optionIndex) => [
+              option.scope === 'policy' && options[optionIndex - 1]?.decision !== option.decision && (
+                <div className="policy-temporary-divider" key="column-policy-divider">
+                  <span>{option.decision}</span>
+                  <small>Outside Temporary</small>
+                </div>
+              ),
+              <button
+                className="decision-table-picker-option"
+                key={`${option.category}-${option.label}-${option.scope || 'default'}`}
+                onClick={() => {
+                  updateDecisionTableColumn(nodeId, column.id, option.label)
+                  setDecisionTableColumnPicker(null)
+                }}
+              >
+                <i className={option.category}>{option.kind === 'function' ? 'ƒ' : option.kind === 'keyword' ? 'SQL' : option.category === 'feature' ? 'F' : option.category === 'temporary' ? 'T' : 'C'}</i>
+                <span><strong>{option.label}</strong><small>{option.description || option.detail}</small></span>
+              </button>,
+            ])}
+            {!options.length && <p>No matching modules</p>}
+          </section>
+        </div>
+        <button
+          className="decision-table-add-variable"
+          onClick={() => {
+            setDecisionTableColumnPicker(null)
+            window.open('/custom', '_blank', 'noopener,noreferrer')
+          }}
+        >＋ Add Variable</button>
+      </div>
+    )
   }
 
   const renderDecisionTableCell = (nodeId, row, column) => {
@@ -2741,10 +2884,16 @@ function DecisionEditorPage() {
               </nav>
               <section>
                 <small>{decisionTablePicker.query ? 'Search Result' : decisionTablePickerCategories.find((item) => item.id === category)?.label}</small>
-                {pickerOptions.map((option) => (
+                {pickerOptions.map((option, optionIndex) => [
+                  option.scope === 'policy' && pickerOptions[optionIndex - 1]?.decision !== option.decision && (
+                    <div className="policy-temporary-divider" key="cell-policy-divider">
+                      <span>{option.decision}</span>
+                      <small>Outside Temporary</small>
+                    </div>
+                  ),
                   <button
                     className="decision-table-picker-option"
-                    key={`${option.category}-${option.label}`}
+                    key={`${option.category}-${option.label}-${option.scope || 'default'}`}
                     onClick={() => {
                       appendDecisionTablePart(nodeId, row.id, column.id, option)
                       setDecisionTablePicker(null)
@@ -2752,8 +2901,8 @@ function DecisionEditorPage() {
                   >
                     <i className={option.category}>{option.kind === 'function' ? 'ƒ' : option.kind === 'keyword' ? 'SQL' : option.category === 'feature' ? 'F' : option.category === 'temporary' ? 'T' : 'C'}</i>
                     <span><strong>{option.label}</strong><small>{option.description || option.detail}</small></span>
-                  </button>
-                ))}
+                  </button>,
+                ])}
                 {!pickerOptions.length && <p>No matching modules</p>}
               </section>
             </div>
@@ -2846,13 +2995,28 @@ function DecisionEditorPage() {
           <button className="decision-table-add-column" onClick={() => addDecisionTableColumn(node.id)}>＋</button>
           <div className="decision-table-row-number">1</div>
           {table.columns.map((column) => (
-            <input
-              key={column.id}
-              className={`decision-table-column-name ${column.kind}`}
-              aria-label={`Column ${column.id} name`}
-              value={column.name}
-              onChange={(event) => updateDecisionTableColumn(node.id, column.id, event.target.value)}
-            />
+            <div className={`decision-table-column-header ${column.kind}`} key={column.id}>
+              <input
+                className={`decision-table-column-name ${column.kind}`}
+                aria-label={`Column ${column.id} variable`}
+                value={column.name}
+                readOnly
+                title={column.kind === 'condition' ? 'Click to select a condition variable' : 'Click to select a Temporary variable'}
+                onClick={() => setDecisionTableColumnPicker({
+                  nodeId: node.id,
+                  columnId: column.id,
+                  category: column.kind === 'condition' ? 'feature' : 'temporary',
+                  query: '',
+                })}
+                onDoubleClick={() => setDecisionTableColumnPicker({
+                  nodeId: node.id,
+                  columnId: column.id,
+                  category: column.kind === 'condition' ? 'feature' : 'temporary',
+                  query: '',
+                })}
+              />
+              {renderDecisionTableColumnPicker(node.id, column)}
+            </div>
           ))}
           <div />
           {table.rows.map((row, rowIndex) => (
@@ -2870,6 +3034,58 @@ function DecisionEditorPage() {
         </div>
         <button className="decision-table-add-row" onClick={() => addDecisionTableRow(node.id)}>＋ Add row</button>
       </section>
+    )
+  }
+
+  const renderNodeHelp = (type) => {
+    if (!['block', 'action'].includes(type)) return null
+
+    return (
+      <span className={`node-help node-help-${type}`} tabIndex="0" aria-label={`How ${type === 'block' ? 'Hard Rules' : 'Assignment'} works`}>
+        ?
+        <span className="node-help-popover" role="tooltip">
+          {type === 'action' ? (
+            <>
+              <strong>How this node works?</strong>
+              <span className="assignment-help-matrix" aria-label="Assignment node example">
+                <span className="help-corner" />
+                <span className="help-letter">A</span>
+                <span className="help-letter">B</span>
+                <span className="help-number">1</span>
+                <span className="help-cell help-a1"><b>Variable</b><small>Assignment target</small></span>
+                <span className="help-cell help-b1"><b>Assignment Expression</b><small>Source value</small></span>
+                <span className="help-number">2</span>
+                <span className="help-cell help-a2"><b>A2</b><small>Temporary variable</small></span>
+                <span className="help-cell help-b2"><b>B2</b><small>Expression or Value</small></span>
+                <span className="help-number">3</span>
+                <span className="help-cell help-a3"><b>A3</b><small>Another Temporary</small></span>
+                <span className="help-cell help-b3"><b>B3</b><small>Expression or Value</small></span>
+                <span className="help-assign-arrow row-2">←</span>
+                <span className="help-assign-arrow row-3">←</span>
+              </span>
+              <span className="assignment-help-flow" aria-hidden="true">
+                <span className="source"><b>B2</b><small>Expression or Value</small></span>
+                <i>assign →</i>
+                <span className="target"><b>A2</b><small>Temporary</small></span>
+              </span>
+              <span className="assignment-help-flow" aria-hidden="true">
+                <span className="source"><b>B3</b><small>Expression or Value</small></span>
+                <i>assign →</i>
+                <span className="target"><b>A3</b><small>Temporary</small></span>
+              </span>
+              <p>Each row evaluates column B, then assigns the result to the Temporary variable in column A. Add another row to create another value for downstream nodes.</p>
+              <code>A2 = B2&nbsp;&nbsp;·&nbsp;&nbsp;A3 = B3</code>
+            </>
+          ) : (
+            <span className="node-help-reference-crop hard-rules">
+              <img
+                src={`${import.meta.env.BASE_URL}assets/node-help-hardrules-assignment.png`}
+                alt="How the Hard Rules node works"
+              />
+            </span>
+          )}
+        </span>
+      </span>
     )
   }
 
@@ -3129,17 +3345,7 @@ function DecisionEditorPage() {
           <button className="editor-panel-icon" onClick={() => document.documentElement.requestFullscreen?.()} aria-label="Fullscreen">▣</button>
           <div className="editor-title">
             <div>{decisionMeta.name}</div>
-            <label className="decision-editor-version">
-              <span>Decision version</span>
-              <select
-                aria-label="Decision version"
-                value={activeDecisionVersion}
-                onChange={(event) => switchDecisionVersion(event.target.value)}
-              >
-                {decisionMeta.versions.map((version) => <option key={version}>{version}</option>)}
-              </select>
-            </label>
-            <small>Autosaved just now · Published only through Policy</small>
+            <small className="decision-editor-version-static">{activeDecisionVersion.replace(/^V/i, '')}</small>
           </div>
         </div>
 
@@ -3310,7 +3516,7 @@ function DecisionEditorPage() {
                 className={`canvas-node ${node.type} ${selected ? 'selected' : ''} ${connectionDraft?.hoverTargetId === node.id ? 'connection-target' : ''}`}
                 style={{ left: node.x, top: node.y }}
               >
-                {node.type !== 'start' && (
+                {node.type !== 'start' && node.type !== 'nodeGroup' && (
                   <button
                     type="button"
                     className="node-input-port"
@@ -3334,7 +3540,7 @@ function DecisionEditorPage() {
                         <small>{definition?.label}</small>
                         {renderCanvasNodeTitle(node, selected)}
                       </span>
-                      <span className={`node-status ${node.status || 'warning'}`}>{node.status === 'success' ? '✓' : '!'}</span>
+                      {node.type !== 'nodeGroup' && <span className={`node-status ${node.status || 'warning'}`}>{node.status === 'success' ? '✓' : '!'}</span>}
                       <button
                         className="node-more"
                         aria-label={`Configure ${node.label}`}
@@ -3346,7 +3552,12 @@ function DecisionEditorPage() {
                         ···
                       </button>
                     </span>
-                    {node.type === 'ifElse' ? (
+                    {node.type === 'nodeGroup' ? (
+                      <div className="node-group-preview">
+                        <span>Drag related nodes into this area</span>
+                        <small>Organize the canvas without changing execution logic</small>
+                      </div>
+                    ) : node.type === 'ifElse' ? (
                       <div className="ifelse-node-preview">
                         {conditionBranchOrder.map((branch, index) => {
                           const condition = conditionRows[branch]?.[0]
@@ -3404,7 +3615,7 @@ function DecisionEditorPage() {
                   </>
                 )}
                 {selected && <><i className="node-handle top" /><i className="node-handle bottom" /></>}
-                {node.type !== 'end' && node.type !== 'ifElse' && (
+                {node.type !== 'end' && node.type !== 'ifElse' && node.type !== 'nodeGroup' && (
                   <button
                     className="node-add-button"
                     aria-label={`Add node after ${node.label}`}
@@ -3473,7 +3684,10 @@ function DecisionEditorPage() {
             <>
               <div className="drawer-header">
                 <button onClick={() => setPanelMode('')} aria-label="Close configuration">×</button>
-                <h3>{selectedNode.label}</h3>
+                <div className="drawer-title-with-help">
+                  <h3>{selectedNode.label}</h3>
+                  {renderNodeHelp(selectedNode.type)}
+                </div>
                 {selectedNode.type !== 'decisionTable' && <span>ⓘ</span>}
               </div>
               <div className="drawer-body">
@@ -3743,7 +3957,6 @@ function DecisionEditorPage() {
                       <div className="assignment-rule-grid">
                         <div className="assignment-grid-corner" />
                         <div className="assignment-grid-letter assignment-grid-a-letter">A</div>
-                        <div className="assignment-grid-letter assignment-grid-equals-heading">=</div>
                         <div className="assignment-grid-letter assignment-grid-b-letter">B</div>
                         <button
                           className="assignment-add-row"
@@ -3753,8 +3966,6 @@ function DecisionEditorPage() {
 
                         <div className="assignment-grid-number">1</div>
                         <div className="assignment-grid-heading variable">Variable</div>
-                        <div className="assignment-grid-heading data-type">Data Type</div>
-                        <div className="assignment-grid-heading equals">=</div>
                         <div className="assignment-grid-heading expression">Assignment Expression</div>
                         <div />
 
@@ -3762,19 +3973,29 @@ function DecisionEditorPage() {
                           <div className="assignment-grid-row" key={operation.id}>
                             <div className="assignment-grid-number">{rowIndex + 2}</div>
                             <div className="assignment-grid-target">
-                              <div className="action-target-wrap">
+                              <div
+                                className="action-target-wrap"
+                                onDoubleClick={() => {
+                                  if (operation.target) return
+                                  setActionExpressionPicker(null)
+                                  setActionTargetPicker({
+                                    rowId: operation.id,
+                                    category: 'temporary',
+                                    query: '',
+                                    newName: '',
+                                  })
+                                }}
+                              >
                                 <div className={operation.target ? 'assignment-target-combobox selected' : 'assignment-target-combobox'}>
                                   {operation.target && (
-                                    <i className={operation.target.startsWith('Feature ·') ? 'feature' : operation.target.startsWith('Custom ·') || !operation.target.includes(' · ') ? 'custom' : 'local'}>
-                                      {operation.target.startsWith('Feature ·') ? 'F' : operation.target.startsWith('Custom ·') || !operation.target.includes(' · ') ? 'C' : 'N'}
+                                    <i className={operation.target.startsWith('Keyword ·') ? 'keyword' : 'temporary'}>
+                                      {operation.target.startsWith('Keyword ·') ? 'SQL' : 'T'}
                                     </i>
                                   )}
                                   <input
                                     aria-label={`Enter or select assignment variable ${rowIndex + 1}`}
-                                    value={operation.target.startsWith('Custom · ')
-                                      ? operation.target.slice('Custom · '.length)
-                                      : operation.target}
-                                    placeholder="Select or enter variable"
+                                    value={operation.target.split(' · ').at(-1)}
+                                    placeholder="Select Variable"
                                     onChange={(event) => updateActionTargetText(selectedNode.id, operation.id, event.target.value)}
                                     onKeyDown={(event) => {
                                       if (event.key === 'Enter') event.currentTarget.blur()
@@ -3782,48 +4003,31 @@ function DecisionEditorPage() {
                                   />
                                   <button
                                     aria-label={`Select assignment variable ${rowIndex + 1}`}
-                                    onClick={() => setActionTargetPicker({
-                                      rowId: operation.id,
-                                      category: operation.target.startsWith('Feature ·')
-                                        ? 'feature'
-                                        : operation.target.startsWith('Custom ·') || !operation.target.includes(' · ')
-                                          ? 'custom'
-                                          : 'local',
-                                      query: '',
-                                      newName: '',
-                                    })}
+                                    onClick={() => {
+                                      setActionExpressionPicker(null)
+                                      setActionTargetPicker({
+                                        rowId: operation.id,
+                                        category: operation.target.startsWith('Keyword ·')
+                                          ? 'keyword'
+                                          : 'temporary',
+                                        query: '',
+                                        newName: '',
+                                      })
+                                    }}
                                   >⌄</button>
                                 </div>
                                 {['result', 'reject_code', 'reject_reason'].includes(operation.target.split(' · ').at(-1)) && <span>Official</span>}
                                 {renderActionTargetPicker(selectedNode.id, operation)}
                               </div>
                             </div>
-                            <div className="assignment-grid-data-type">
-                              <select
-                                aria-label={`Assignment data type ${rowIndex + 1}`}
-                                value={operation.dataType || 'String'}
-                                disabled={Boolean(operation.target) && !operation.isNewTarget}
-                                title={Boolean(operation.target) && !operation.isNewTarget ? 'Data type is inherited from the selected variable' : 'Select data type for the new variable'}
-                                onChange={(event) => updateActionDataType(selectedNode.id, operation.id, event.target.value)}
-                              >
-                                {['String', 'Integer', 'Number', 'Boolean', 'Time', 'Object', 'Array', 'File'].map((dataType) => (
-                                  <option key={dataType} value={dataType}>{dataType}</option>
-                                ))}
-                              </select>
-                              <button
-                                className="assignment-default-toggle"
-                                aria-label={`${expandedActionDefaults[operation.id] ? 'Hide' : 'Set'} default value for ${operation.target || `assignment ${rowIndex + 1}`}`}
-                                aria-expanded={Boolean(expandedActionDefaults[operation.id])}
-                                onClick={() => setExpandedActionDefaults((current) => ({
-                                  ...current,
-                                  [operation.id]: !current[operation.id],
-                                }))}
-                              >
-                                ↗
-                              </button>
-                            </div>
-                            <div className="assignment-grid-equals" aria-label="Assignment equals">=</div>
-                            <div className="assignment-grid-expression">
+                            <div
+                              className="assignment-grid-expression"
+                              onDoubleClick={() => {
+                                const parts = operation.expression?.parts || [null]
+                                if (parts.some(Boolean)) return
+                                openActionOperandPicker(operation, [0])
+                              }}
+                            >
                               {renderActionExpression(selectedNode.id, operation)}
                             </div>
                             <button
@@ -3832,37 +4036,17 @@ function DecisionEditorPage() {
                               disabled={(actionOperations[selectedNode.id] || []).length === 1}
                               onClick={() => deleteActionOperation(selectedNode.id, operation.id)}
                             >−</button>
-                            {expandedActionDefaults[operation.id] && (
-                              <div className="assignment-default-editor">
-                                <div>
-                                  <strong>Default Value</strong>
-                                  <span>Used when the assignment expression returns no value.</span>
-                                </div>
-                                {operation.dataType === 'Boolean' ? (
-                                  <select
-                                    aria-label={`Default value for ${operation.target || `assignment ${rowIndex + 1}`}`}
-                                    value={operation.defaultValue || ''}
-                                    onChange={(event) => updateActionDefaultValue(selectedNode.id, operation.id, event.target.value)}
-                                  >
-                                    <option value="">No default</option>
-                                    <option value="true">true</option>
-                                    <option value="false">false</option>
-                                  </select>
-                                ) : (
-                                  <input
-                                    type={['Integer', 'Number'].includes(operation.dataType) ? 'number' : operation.dataType === 'Time' ? 'datetime-local' : 'text'}
-                                    aria-label={`Default value for ${operation.target || `assignment ${rowIndex + 1}`}`}
-                                    value={operation.defaultValue || ''}
-                                    placeholder={['Object', 'Array'].includes(operation.dataType) ? 'Enter JSON default value' : 'Enter default value'}
-                                    onChange={(event) => updateActionDefaultValue(selectedNode.id, operation.id, event.target.value)}
-                                  />
-                                )}
-                              </div>
-                            )}
                           </div>
                         ))}
                       </div>
                       <button className="decision-table-add-row" onClick={() => addActionOperation(selectedNode.id)}>＋ Add assignment</button>
+                    </section>
+                  </>
+                ) : selectedNode.type === 'nodeGroup' ? (
+                  <>
+                    <section className="node-group-config">
+                      <strong>Node Group</strong>
+                      <p>Use a Node Group to visually organize related nodes on the canvas. It does not change the workflow execution order.</p>
                     </section>
                   </>
                 ) : selectedNode.type === 'start' ? (

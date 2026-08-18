@@ -48,6 +48,26 @@
   gap: 5px;
   padding: 4px 10px 12px;
   overflow-y: auto;
+  scrollbar-color: rgba(210, 215, 224, 0.62) #120538;
+  scrollbar-width: thin;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: #120538;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  border: 2px solid #120538;
+  border-radius: 999px;
+  background: rgba(210, 215, 224, 0.62);
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(225, 229, 235, 0.78);
 }
 
 .primary-nav-item,

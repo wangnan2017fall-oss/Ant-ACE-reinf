@@ -39,6 +39,19 @@ function ParameterRows({ rows }) {
   )
 }
 
+function ReadOnlyParameterRows({ rows, kind }) {
+  return (
+    <div className="policy-readonly-variable-list">
+      {rows.map(([name, description]) => (
+        <div className="policy-readonly-variable-row" key={name}>
+          <i className={kind}>{kind === 'feature' ? 'F' : 'C'}</i>
+          <span><strong>{name}</strong><small>{description}</small></span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function PolicyCanvasEditorPage() {
   const { id = '1' } = useParams()
   const navigate = useNavigate()
@@ -133,13 +146,18 @@ function PolicyCanvasEditorPage() {
         {drawer === 'node' && selectedNode === 'decision' && (
           <div className="policy-node-config">
             <h3>Decision Input</h3>
-            <h4><span>Custom variable</span><span>Input Parameter Mapping</span></h4>
-            <ParameterRows rows={customInputs} />
-            <h4><span>Feature Input</span><span>Input Parameter Mapping</span></h4>
-            <ParameterRows rows={featureInputs} />
+            <section className="policy-readonly-variable-section">
+              <h4>Custom</h4>
+              <ReadOnlyParameterRows rows={customInputs} kind="custom" />
+            </section>
+            <section className="policy-readonly-variable-section">
+              <h4>Feature</h4>
+              <ReadOnlyParameterRows rows={featureInputs} kind="feature" />
+            </section>
             <h3>Decision Output</h3>
-            <div className="policy-output-head"><span>Output Variable</span><span>Use as Policy Output</span><span>Assign to Temporary</span></div>
-            {decisionOutputs.map((output) => <div className="policy-output-row" key={output}><strong>{output}</strong><input type="checkbox" /><select defaultValue=""><option value="">Select</option><option>{output}</option></select></div>)}
+            <div className="policy-readonly-output-list">
+              {decisionOutputs.map((output) => <div className="policy-readonly-output-row" key={output}><i>O</i><span><strong>{output}</strong><small>Decision output</small></span></div>)}
+            </div>
           </div>
         )}
 

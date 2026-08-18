@@ -13,14 +13,14 @@ const policyTabs = [
 
 const parameters = {
   customer: [
-    { name: 'user_id', type: 'string', source: 'Policy request', usedIn: 'User and Credit Report features' },
-    { name: 'shop_id', type: 'string', source: 'Policy request', usedIn: 'Shop features' },
+    { name: 'user_id', type: 'string', description: 'Unique customer identifier passed by the calling system.', defaultValue: '—' },
+    { name: 'shop_id', type: 'string', description: 'Shop identifier passed by the calling system.', defaultValue: '—' },
   ],
   feature: [
-    { name: 'age', type: 'number', component: 'User', key: 'user_id', usedIn: 'Eligibility Rule' },
-    { name: 'monthly_income', type: 'number', component: 'User', key: 'user_id', usedIn: 'Risk Score, Limit Table' },
-    { name: 'credit_report_score', type: 'number', component: 'Credit Report', key: 'user_id', usedIn: 'Risk Score' },
-    { name: 'shop_risk_level', type: 'string', component: 'Shop', key: 'shop_id', usedIn: 'Fraud Score' },
+    { name: 'age', type: 'number', description: 'Customer age returned by the User data component.' },
+    { name: 'monthly_income', type: 'number', description: 'Verified monthly income returned by the User data component.' },
+    { name: 'credit_report_score', type: 'number', description: 'Credit score returned by the Credit Report component.' },
+    { name: 'shop_risk_level', type: 'string', description: 'Risk level returned by the Shop data component.' },
   ],
   output: [
     { name: 'approved', type: 'boolean', source: 'Eligibility Rule.approved', returnedBy: 'Policy End' },
@@ -83,7 +83,7 @@ function PolicyOverviewPage() {
   const [versions, setVersions] = useState(initialVersions)
   const [showMore, setShowMore] = useState(true)
   const [trafficEnvironment, setTrafficEnvironment] = useState('production')
-  const [parameterType, setParameterType] = useState('customer')
+  const [parameterType, setParameterType] = useState('input')
   const [parameterSearch, setParameterSearch] = useState('')
   const [recordsView, setRecordsView] = useState('records')
   const [diffVersion, setDiffVersion] = useState('V1.0.4')
@@ -92,8 +92,14 @@ function PolicyOverviewPage() {
   const visibleVersions = useMemo(() => versions.filter((item) => versionView === 'online' ? item.online : !item.online), [versionView, versions])
   const visibleParameters = useMemo(() => {
     const query = parameterSearch.trim().toLowerCase()
-    if (!query) return parameters[parameterType]
-    return parameters[parameterType].filter((item) => Object.values(item).some((value) => String(value).toLowerCase().includes(query)))
+    const source = parameterType === 'input'
+      ? [
+          ...parameters.customer.map((item) => ({ ...item, inputType: 'custom' })),
+          ...parameters.feature.map((item) => ({ ...item, inputType: 'feature' })),
+        ]
+      : parameters.output
+    if (!query) return source
+    return source.filter((item) => Object.values(item).some((value) => String(value).toLowerCase().includes(query)))
   }, [parameterSearch, parameterType])
   const activeVersionDiff = policyVersionDiffs[diffVersion]
 
@@ -184,16 +190,28 @@ function PolicyOverviewPage() {
           </div>
           <div className="parameter-tabs">
             {[
-              { key: 'customer', label: 'Custom', count: parameters.customer.length },
-              { key: 'feature', label: 'Feature', count: parameters.feature.length },
+              { key: 'input', label: 'Input', count: parameters.customer.length + parameters.feature.length },
               { key: 'output', label: 'Output', count: parameters.output.length },
             ].map((item) => <button key={item.key} className={parameterType === item.key ? 'active' : ''} onClick={() => setParameterType(item.key)}>{item.label}<span>{item.count}</span></button>)}
           </div>
           <div className="parameter-table-wrap">
-            <table className="parameter-table">
-              <thead><tr><th>Name</th><th>Type</th>{parameterType === 'feature' ? <><th>Component</th><th>Lookup Key</th></> : <th>Source</th>}<th>{parameterType === 'output' ? 'Returned By' : parameterType === 'customer' ? 'Resolves' : 'Used In'}</th></tr></thead>
-              <tbody>{visibleParameters.map((item) => <tr key={item.name}><td><span className={`parameter-dot ${parameterType}`} />{item.name}</td><td><code>{item.type}</code></td>{parameterType === 'feature' ? <><td>{item.component}</td><td><code>{item.key}</code></td></> : <td>{item.source}</td>}<td>{parameterType === 'output' ? item.returnedBy : item.usedIn || item.source}</td></tr>)}</tbody>
-            </table>
+            {parameterType === 'input' ? ['custom', 'feature'].map((inputType) => {
+              const rows = visibleParameters.filter((item) => item.inputType === inputType)
+              return (
+                <section className="parameter-input-group" key={inputType}>
+                  <h3>{inputType === 'custom' ? 'Custom' : 'Feature'} <span>{rows.length}</span></h3>
+                  <table className="parameter-table">
+                    <thead><tr><th>Name</th><th>Type</th><th>Description</th>{inputType === 'custom' && <th>Default Value</th>}</tr></thead>
+                    <tbody>{rows.map((item) => <tr key={item.name}><td><span className={`parameter-dot ${inputType === 'custom' ? 'customer' : 'feature'}`} />{item.name}</td><td><code>{item.type}</code></td><td>{item.description}</td>{inputType === 'custom' && <td>{item.defaultValue}</td>}</tr>)}</tbody>
+                  </table>
+                </section>
+              )
+            }) : (
+              <table className="parameter-table">
+                <thead><tr><th>Name</th><th>Type</th><th>Source</th><th>Returned By</th></tr></thead>
+                <tbody>{visibleParameters.map((item) => <tr key={item.name}><td><span className="parameter-dot output" />{item.name}</td><td><code>{item.type}</code></td><td>{item.source}</td><td>{item.returnedBy}</td></tr>)}</tbody>
+              </table>
+            )}
           </div>
         </section>
       )}
