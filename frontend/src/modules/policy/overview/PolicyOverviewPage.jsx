@@ -30,6 +30,62 @@ const parameters = {
   ],
 }
 
+const decisionParameterConfigs = [
+  { key: 'policy-parameter-management', label: 'Policy Parameter Management' },
+  {
+    key: 'credit_eligibility_decision',
+    label: 'credit_eligibility_decision',
+    version: 'V2.1.0',
+    custom: [
+      ['user_id', 'Unique customer identifier'],
+      ['shop_id', 'Shop identifier'],
+      ['requested_amount', 'Requested credit amount'],
+    ],
+    feature: [
+      ['age', 'Customer age'],
+      ['credit_report_score', 'Credit report score'],
+      ['monthly_income', 'Verified monthly income'],
+    ],
+    outputs: ['approved', 'customer_tier', 'risk_score'],
+  },
+  {
+    key: 'limit_pricing_decision',
+    label: 'limit_pricing_decision',
+    version: 'V1.4.2',
+    custom: [['user_id', 'Unique customer identifier'], ['requested_amount', 'Requested credit amount']],
+    feature: [['monthly_income', 'Verified monthly income'], ['credit_report_score', 'Credit report score']],
+    outputs: ['credit_limit', 'interest_rate', 'loan_term'],
+  },
+  {
+    key: 'anti_fraud_decision',
+    label: 'anti_fraud_decision',
+    version: 'V0.9.0',
+    custom: [['user_id', 'Unique customer identifier'], ['application_channel', 'Application channel']],
+    feature: [['shop_risk_level', 'Shop risk level'], ['credit_report_score', 'Credit report score']],
+    outputs: ['fraud_score', 'fraud_reason'],
+  },
+]
+
+const policyAvailableInputs = [
+  'Custom · user_id',
+  'Custom · shop_id',
+  'Custom · requested_amount',
+  'Custom · application_channel',
+  'Feature · age',
+  'Feature · monthly_income',
+  'Feature · credit_report_score',
+  'Feature · shop_risk_level',
+]
+
+const initialPolicyInputParameters = [
+  { name: 'buyerAdminSeq', description: 'Buyer admin sequence', type: 'string' },
+  { name: 'DVGPS001_RES', description: 'DVGPS001 response', type: 'string' },
+  { name: 'simulationMark', description: 'Simulation mark', type: 'string' },
+  { name: 'dataReqId', description: 'Data request ID', type: 'string' },
+  { name: 'personSignId', description: 'Person sign ID', type: 'string' },
+  { name: 'creditGrantNo', description: 'Credit grant number', type: 'string' },
+]
+
 const policyRecords = [
   { actor: 'luke.wn', action: 'Created', target: 'Policy version V1.0.4', detail: 'Copied from V1.0.3', time: 'Jul 27, 2026 11:26' },
   { actor: 'gaochaoxiang.gcx', action: 'Added', target: 'anti_fraud_decision', detail: 'Added Decision node to Policy Canvas', time: 'Jul 27, 2026 10:18' },
@@ -74,6 +130,26 @@ const initialVersions = [
   { version: 'V1.0.1', updatedBy: 'luke.wn', updatedAt: '2026-08-04 15:06', status: 'Offline', online: false, traffic: 0 },
 ]
 
+function ParameterMappingGroup({ title, rows, groupKey, mappings, onChange }) {
+  return (
+    <div className="decision-input-group">
+      <div className="decision-input-group-header"><strong>{title}</strong><span>Input Parameter Mapping</span></div>
+      <div className="decision-input-mapping-list">
+        {rows.map(([name, description]) => {
+          const field = `${groupKey}-${name}`
+          return <label className="decision-input-mapping-row" key={field}>
+            <span><b>{name}</b><small>{description}</small></span>
+            <select value={mappings[field] || ''} onChange={(event) => onChange(field, event.target.value)}>
+              <option value="">Select</option>
+              {policyAvailableInputs.map((option) => <option key={option}>{option}</option>)}
+            </select>
+          </label>
+        })}
+      </div>
+    </div>
+  )
+}
+
 function PolicyOverviewPage() {
   const { id = '1' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -85,6 +161,10 @@ function PolicyOverviewPage() {
   const [trafficEnvironment, setTrafficEnvironment] = useState('production')
   const [parameterType, setParameterType] = useState('input')
   const [parameterSearch, setParameterSearch] = useState('')
+  const [selectedDecisionParameter, setSelectedDecisionParameter] = useState(decisionParameterConfigs[1].key)
+  const [parameterMappings, setParameterMappings] = useState({})
+  const [policyOutputMappings, setPolicyOutputMappings] = useState({})
+  const [policyInputParameters, setPolicyInputParameters] = useState(initialPolicyInputParameters)
   const [recordsView, setRecordsView] = useState('records')
   const [diffVersion, setDiffVersion] = useState('V1.0.4')
   const profile = policyProfiles[id] || policyProfiles['1']
@@ -102,6 +182,23 @@ function PolicyOverviewPage() {
     return source.filter((item) => Object.values(item).some((value) => String(value).toLowerCase().includes(query)))
   }, [parameterSearch, parameterType])
   const activeVersionDiff = policyVersionDiffs[diffVersion]
+  const activeDecisionParameter = decisionParameterConfigs.find((item) => item.key === selectedDecisionParameter) || decisionParameterConfigs[1]
+
+  const setParameterMapping = (field, value) => {
+    setParameterMappings((current) => ({ ...current, [field]: value }))
+  }
+
+  const setOutputMapping = (field, value) => {
+    setPolicyOutputMappings((current) => ({ ...current, [field]: { ...current[field], ...value } }))
+  }
+
+  const updatePolicyInput = (index, field, value) => {
+    setPolicyInputParameters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item))
+  }
+
+  const addPolicyInput = () => {
+    setPolicyInputParameters((current) => [...current, { name: '', description: '', type: 'string' }])
+  }
 
   const changeTab = (tab) => {
     setActiveTab(tab)
@@ -183,36 +280,52 @@ function PolicyOverviewPage() {
       )}
 
       {activeTab === 'parameters' && (
-        <section className="parameter-panel">
-          <div className="panel-heading">
-            <div><h2>Parameters</h2><p>Variables available in this policy. Inputs are resolved through each feature’s component key.</p></div>
-            <label className="inline-search"><span>⌕</span><input value={parameterSearch} onChange={(event) => setParameterSearch(event.target.value)} placeholder="Search parameter" /></label>
+        <section className="parameter-panel decision-parameter-panel">
+          <div className="decision-parameter-tabs" role="tablist" aria-label="Decision parameter configuration">
+            {decisionParameterConfigs.map((item) => (
+              <button key={item.key} role="tab" aria-selected={selectedDecisionParameter === item.key} className={selectedDecisionParameter === item.key ? 'active' : ''} onClick={() => setSelectedDecisionParameter(item.key)}>
+                <span>{item.label}</span>{item.version && <small>{item.version}</small>}
+              </button>
+            ))}
           </div>
-          <div className="parameter-tabs">
-            {[
-              { key: 'input', label: 'Input', count: parameters.customer.length + parameters.feature.length },
-              { key: 'output', label: 'Output', count: parameters.output.length },
-            ].map((item) => <button key={item.key} className={parameterType === item.key ? 'active' : ''} onClick={() => setParameterType(item.key)}>{item.label}<span>{item.count}</span></button>)}
-          </div>
-          <div className="parameter-table-wrap">
-            {parameterType === 'input' ? ['custom', 'feature'].map((inputType) => {
-              const rows = visibleParameters.filter((item) => item.inputType === inputType)
-              return (
-                <section className="parameter-input-group" key={inputType}>
-                  <h3>{inputType === 'custom' ? 'Custom' : 'Feature'} <span>{rows.length}</span></h3>
-                  <table className="parameter-table">
-                    <thead><tr><th>Name</th><th>Type</th><th>Description</th>{inputType === 'custom' && <th>Default Value</th>}</tr></thead>
-                    <tbody>{rows.map((item) => <tr key={item.name}><td><span className={`parameter-dot ${inputType === 'custom' ? 'customer' : 'feature'}`} />{item.name}</td><td><code>{item.type}</code></td><td>{item.description}</td>{inputType === 'custom' && <td>{item.defaultValue}</td>}</tr>)}</tbody>
-                  </table>
-                </section>
-              )
-            }) : (
-              <table className="parameter-table">
-                <thead><tr><th>Name</th><th>Type</th><th>Source</th><th>Returned By</th></tr></thead>
-                <tbody>{visibleParameters.map((item) => <tr key={item.name}><td><span className="parameter-dot output" />{item.name}</td><td><code>{item.type}</code></td><td>{item.source}</td><td>{item.returnedBy}</td></tr>)}</tbody>
-              </table>
-            )}
-          </div>
+          {selectedDecisionParameter === 'policy-parameter-management' ? (
+            <div className="policy-parameter-management">
+              <div className="policy-parameter-management-title"><h3>Input Parameter</h3><button onClick={addPolicyInput} aria-label="Add input parameter">＋</button></div>
+              <div className="policy-parameter-management-head"><span>Name</span><span>Description</span><span>Type</span><span /></div>
+              <div className="policy-parameter-management-list">
+                {policyInputParameters.map((item, index) => (
+                  <div className="policy-parameter-management-row" key={`${item.name}-${index}`}>
+                    <input value={item.name} placeholder="Parameter name" onChange={(event) => updatePolicyInput(index, 'name', event.target.value)} />
+                    <input value={item.description} placeholder="Description" onChange={(event) => updatePolicyInput(index, 'description', event.target.value)} />
+                    <select value={item.type} onChange={(event) => updatePolicyInput(index, 'type', event.target.value)}><option>string</option><option>number</option><option>boolean</option><option>time</option></select>
+                    <button onClick={() => setPolicyInputParameters((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Delete ${item.name || 'input parameter'}`}>⌫</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : <div className="decision-parameter-content">
+            <div className="decision-parameter-title"><span className="decision-parameter-icon">◇</span><div><h3>{activeDecisionParameter.label}</h3><p>Decision version {activeDecisionParameter.version}</p></div></div>
+
+            <section className="decision-parameter-section">
+              <h3>Decision Input</h3>
+              <ParameterMappingGroup title="Custom variable" rows={activeDecisionParameter.custom} groupKey={`${activeDecisionParameter.key}-custom`} mappings={parameterMappings} onChange={setParameterMapping} />
+              <ParameterMappingGroup title="Feature Input" rows={activeDecisionParameter.feature} groupKey={`${activeDecisionParameter.key}-feature`} mappings={parameterMappings} onChange={setParameterMapping} />
+            </section>
+
+            <section className="decision-parameter-section decision-output-section">
+              <h3>Decision Output</h3>
+              <div className="decision-output-header"><span>Output Variable</span><span>Use as Policy Output</span><span>Assign to Temporary</span></div>
+              {activeDecisionParameter.outputs.map((output) => {
+                const field = `${activeDecisionParameter.key}-${output}`
+                const mapping = policyOutputMappings[field] || {}
+                return <div className="decision-output-config-row" key={field}>
+                  <div><i>O</i><strong>{output}</strong></div>
+                  <label className="policy-output-check"><input type="checkbox" checked={Boolean(mapping.asPolicyOutput)} onChange={(event) => setOutputMapping(field, { asPolicyOutput: event.target.checked })} /><span /></label>
+                  <select value={mapping.temporary || ''} onChange={(event) => setOutputMapping(field, { temporary: event.target.value })}><option value="">Select</option><option>{output}</option><option>{`${output}_result`}</option></select>
+                </div>
+              })}
+            </section>
+          </div>}
         </section>
       )}
 
