@@ -77,6 +77,16 @@ const policyAvailableInputs = [
   'Feature · shop_risk_level',
 ]
 
+const policyOutputTargets = [
+  'approved',
+  'credit_limit',
+  'interest_rate',
+  'loan_term',
+  'risk_score',
+  'fraud_score',
+  'reject_reason',
+]
+
 const initialPolicyInputParameters = [
   { name: 'buyerAdminSeq', description: 'Buyer admin sequence', type: 'string' },
   { name: 'DVGPS001_RES', description: 'DVGPS001 response', type: 'string' },
@@ -165,6 +175,7 @@ function PolicyOverviewPage() {
   const [parameterMappings, setParameterMappings] = useState({})
   const [policyOutputMappings, setPolicyOutputMappings] = useState({})
   const [policyInputParameters, setPolicyInputParameters] = useState(initialPolicyInputParameters)
+  const [parameterPolicyVersion, setParameterPolicyVersion] = useState('V1.0.3')
   const [recordsView, setRecordsView] = useState('records')
   const [diffVersion, setDiffVersion] = useState('V1.0.4')
   const profile = policyProfiles[id] || policyProfiles['1']
@@ -281,6 +292,14 @@ function PolicyOverviewPage() {
 
       {activeTab === 'parameters' && (
         <section className="parameter-panel decision-parameter-panel">
+          <div className="parameter-version-toolbar">
+            <span>Policy Version</span>
+            <select value={parameterPolicyVersion} onChange={(event) => setParameterPolicyVersion(event.target.value)} aria-label="Policy version">
+              <option value="V1.0.3">V1.0.3 · Active</option>
+              <option value="V1.0.2">V1.0.2 · Active</option>
+              <option value="V1.0.1">V1.0.1 · Offline</option>
+            </select>
+          </div>
           <div className="decision-parameter-tabs" role="tablist" aria-label="Decision parameter configuration">
             {decisionParameterConfigs.map((item) => (
               <button key={item.key} role="tab" aria-selected={selectedDecisionParameter === item.key} className={selectedDecisionParameter === item.key ? 'active' : ''} onClick={() => setSelectedDecisionParameter(item.key)}>
@@ -320,7 +339,10 @@ function PolicyOverviewPage() {
                 const mapping = policyOutputMappings[field] || {}
                 return <div className="decision-output-config-row" key={field}>
                   <div><i>O</i><strong>{output}</strong></div>
-                  <label className="policy-output-check"><input type="checkbox" checked={Boolean(mapping.asPolicyOutput)} onChange={(event) => setOutputMapping(field, { asPolicyOutput: event.target.checked })} /><span /></label>
+                  <select value={mapping.policyOutput || 'excluded'} onChange={(event) => setOutputMapping(field, { policyOutput: event.target.value })} aria-label={`Policy output mapping for ${output}`}>
+                    <option value="excluded">Excluded</option>
+                    {policyOutputTargets.map((target) => <option key={target} value={target}>{target}</option>)}
+                  </select>
                   <select value={mapping.temporary || ''} onChange={(event) => setOutputMapping(field, { temporary: event.target.value })}><option value="">Select</option><option>{output}</option><option>{`${output}_result`}</option></select>
                 </div>
               })}
