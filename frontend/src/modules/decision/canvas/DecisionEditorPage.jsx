@@ -1851,15 +1851,6 @@ function DecisionEditorPage() {
             icon: 'T',
             scope: 'current',
           }))),
-          ...policyDecisionTemporaryVariables.map((variable) => ({
-            category: 'temporary',
-            label: `t.${variable.name}`,
-            detail: `${variable.decision} ${variable.version} · ${variable.valueKind} · ${variable.type}`,
-            value: `${variable.decision} · ${variable.name}`,
-            icon: 'T',
-            scope: 'policy',
-            decision: variable.decision,
-          })),
           ...decisionTableFunctions.map((item) => ({
             category: 'function',
             label: item.name,
@@ -1964,13 +1955,7 @@ function DecisionEditorPage() {
                           <section className="condition-variable-picker-results">
                             <strong>{leftPickerQuery ? 'Search Result' : leftPickerCategories.find((item) => item.id === leftPickerCategory)?.label}</strong>
                             <div className="condition-variable-option-list">
-                              {visibleLeftPickerOptions.map((option, optionIndex) => [
-                                option.scope === 'policy' && visibleLeftPickerOptions[optionIndex - 1]?.decision !== option.decision && (
-                                  <div className="policy-temporary-divider" key="condition-policy-divider">
-                                    <span>{option.decision}</span>
-                                    <small>Outside Temporary</small>
-                                  </div>
-                                ),
+                              {visibleLeftPickerOptions.map((option) => [
                                 <button type="button" key={`${option.category}-${option.label}-${option.scope || 'default'}`} onClick={() => chooseLeftVariable(option.value)}>
                                   <i className={option.category}>{option.icon}</i>
                                   <span><b>{option.label}</b><small>{option.detail}</small></span>
@@ -2110,15 +2095,6 @@ function DecisionEditorPage() {
           scope: 'current',
         }))
       )),
-      ...policyDecisionTemporaryVariables.map((variable) => ({
-        category: 'temporary',
-        label: variable.name,
-        detail: `${variable.decision} ${variable.version} · ${variable.valueKind} · ${variable.type}`,
-        dataType: normalizeActionDataType(variable.type),
-        operand: { kind: 'variable', value: `${variable.decision} · ${variable.name}`, sourceType: 'temporary' },
-        scope: 'policy',
-        decision: variable.decision,
-      })),
       ...['AND', 'OR', 'NOT', 'IN', 'TRUE', 'FALSE', 'NULL'].map((keyword) => ({
         category: 'keyword',
         label: keyword,
@@ -2380,13 +2356,7 @@ function DecisionEditorPage() {
             {variableOptions.length > 0 && (
               <section>
                 <small>{query ? 'Search Result' : actionPickerCategories.find((item) => item.id === category)?.label}</small>
-                {variableOptions.map((option, optionIndex) => [
-                  option.scope === 'policy' && variableOptions[optionIndex - 1]?.decision !== option.decision && (
-                    <div className="policy-temporary-divider" key="action-policy-divider">
-                      <span>{option.decision}</span>
-                      <small>Outside Temporary</small>
-                    </div>
-                  ),
+                {variableOptions.map((option) => [
                   <button
                     draggable
                     key={`${option.category}-${option.label}-${option.scope || 'default'}`}
@@ -2694,14 +2664,6 @@ function DecisionEditorPage() {
         detail: node.label,
         scope: 'current',
       }))),
-      ...policyDecisionTemporaryVariables.map((variable) => ({
-        category: 'temporary',
-        kind: 'variable',
-        label: `t.${variable.name}`,
-        detail: `${variable.decision} ${variable.version} · ${variable.valueKind} · ${variable.type}`,
-        scope: 'policy',
-        decision: variable.decision,
-      })),
     ]
     const options = [
       ...customConditionVariables.map((variable) => ({
@@ -2775,13 +2737,7 @@ function DecisionEditorPage() {
           </nav>
           <section>
             <small>{decisionTableColumnPicker.query ? 'Search Result' : categories.find((item) => item.id === category)?.label}</small>
-            {options.map((option, optionIndex) => [
-              option.scope === 'policy' && options[optionIndex - 1]?.decision !== option.decision && (
-                <div className="policy-temporary-divider" key="column-policy-divider">
-                  <span>{option.decision}</span>
-                  <small>Outside Temporary</small>
-                </div>
-              ),
+            {options.map((option) => [
               <button
                 className="decision-table-picker-option"
                 key={`${option.category}-${option.label}-${option.scope || 'default'}`}
@@ -2884,13 +2840,7 @@ function DecisionEditorPage() {
               </nav>
               <section>
                 <small>{decisionTablePicker.query ? 'Search Result' : decisionTablePickerCategories.find((item) => item.id === category)?.label}</small>
-                {pickerOptions.map((option, optionIndex) => [
-                  option.scope === 'policy' && pickerOptions[optionIndex - 1]?.decision !== option.decision && (
-                    <div className="policy-temporary-divider" key="cell-policy-divider">
-                      <span>{option.decision}</span>
-                      <small>Outside Temporary</small>
-                    </div>
-                  ),
+                {pickerOptions.map((option) => [
                   <button
                     className="decision-table-picker-option"
                     key={`${option.category}-${option.label}-${option.scope || 'default'}`}
